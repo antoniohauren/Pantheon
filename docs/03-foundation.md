@@ -261,6 +261,10 @@ plaintext), and the PlayGo manifest.
 
 ## Phase 1 exit criteria for the foundation
 
+**D35:** these are checked by local runs, not GitHub CI. Phase 1 is accepted on
+Linux; the Windows and macOS items stay open (unclaimed) until run on those OSes,
+and running cargo-fuzz is deferred until a nightly toolchain is available.
+
 - All five crates build and pass their tests on Linux, Windows and macOS CI.
 - `pantheon-fs` has passing adversarial tests on every OS: symlink and junction
   in the destination parent, existing output, case collision, reserved names,
