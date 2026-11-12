@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "crates/core",
+    "crates/fs",
     "crates/crypto",
     "crates/json",
     "crates/xml",
@@ -10,6 +11,7 @@ members = [
 # Default members grow to L0–L3 + pantheon-cli (architecture §8); GUI and console crates stay opt-in.
 default-members = [
     "crates/core",
+    "crates/fs",
     "crates/crypto",
     "crates/json",
     "crates/xml",
