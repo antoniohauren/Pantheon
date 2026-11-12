@@ -1,0 +1,27 @@
+[package]
+name = "pantheon-crypto"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+pantheon-core = { path = "../core" }
+# `zeroize` is already a transitive dependency of `rsa`, so wiping AES key schedules is free.
+aes = { version = "=0.9.3", default-features = false, features = ["zeroize"] }
+cbc = { version = "=0.2.1", default-features = false }
+xts-mode = { version = "=0.6.0", default-features = false }
+sha1 = { version = "=0.11.0", default-features = false }
+sha2 = { version = "=0.11.1", default-features = false }
+hmac = { version = "=0.13.0", default-features = false }
+rsa = { version = "=0.9.10", default-features = false }
+num-bigint-dig = { version = "=0.8.6", default-features = false }
+miniz_oxide = { version = "=0.9.1", default-features = false, features = ["with-alloc"] }
+ruzstd = { version = "=0.9.1", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+pantheon-core = { path = "../core", features = ["testing"] }
+
+[lints]
+workspace = true
