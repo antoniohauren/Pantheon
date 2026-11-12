@@ -78,6 +78,7 @@ weight as the D-entries.
 | D32 | Generated top-level folder names (Hades, Dionysus) are capped at 31 UTF-8 bytes with the suffix kept (RPCS3 rule). |
 | D33 | The Hermes payload targets `x86_64-unknown-none`. Spike S5 confirms it, and a change needs a log entry. |
 | D34 | The Hermes v1 wire format in [hermes.md](gods/hermes.md#wire-protocol-hermes-wire-version-1) is accepted. Changes after spikes S1–S5 are recorded here. |
+| D35 | (owner, 2026-11-12) Phase exit criteria are accepted by **local runs**, not GitHub CI. Phase 1 is accepted on local Linux: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `cargo xtask deps --core`, the `Corruptor` harness and the `pantheon-xml` differential. Windows/macOS code is written but **not claimed** until run on such a machine; cargo-fuzz targets are written, and running them (nightly) is deferred. CI stays as an extra signal. Amends the [foundation exit criteria](03-foundation.md#phase-1-exit-criteria-for-the-foundation). |
 
 ## Open (owner answer needed)
 
