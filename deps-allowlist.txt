@@ -1,0 +1,4 @@
+# Dependency allowlist, enforced by `cargo xtask deps` (docs/02-dependencies.md §6).
+# Every crate in Cargo.lock that is not a workspace member must be listed here.
+#
+# name        version   owner(s)                 reason

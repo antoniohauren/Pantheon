@@ -1,0 +1,18 @@
+[workspace]
+resolver = "3"
+members = ["xtask"]
+# Default members grow to L0–L3 + pantheon-cli (architecture §8); GUI and console crates stay opt-in.
+default-members = ["xtask"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.99.1"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/antoniohauren/Pantheon"
+
+[workspace.lints.rust]
+# The three exception crates (architecture §9) opt out and set deny(unsafe_code) themselves.
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
