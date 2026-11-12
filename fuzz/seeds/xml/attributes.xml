@@ -1,0 +1,5 @@
+<doc   a = "1"
+  b	=	'2'
+  empty=""
+  gt=">"
+  long-name.with_chars-123="x"/>

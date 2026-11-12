@@ -1,0 +1,27 @@
+# cargo-fuzz targets (D20). Standalone package, not a workspace member; needs nightly:
+# `cargo +nightly fuzz run fuzz_xml fuzz/seeds/xml`.
+[package]
+name = "pantheon-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+pantheon-core = { path = "../crates/core" }
+pantheon-xml = { path = "../crates/xml" }
+roxmltree = { version = "=0.21.1", default-features = false, features = ["std"] }
+
+[[bin]]
+name = "fuzz_xml"
+path = "fuzz_targets/fuzz_xml.rs"
+test = false
+doc = false
+bench = false
+
+# Keeps this package out of the main workspace.
+[workspace]

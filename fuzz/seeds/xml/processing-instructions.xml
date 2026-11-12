@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<?pantheon mode="test"?>
+<?empty?>
+<root><?inner data with ? and > inside?>x<?XML not-a-declaration?></root>
+<?after?>

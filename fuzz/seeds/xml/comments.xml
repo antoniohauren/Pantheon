@@ -1,0 +1,7 @@
+<!-- leading comment -->
+<?xml-stylesheet href="x.css" type="text/css"?>
+<root><!----><!-- a - b -->text<!-- split -->more<child/><!--
+multi
+line
+--></root>
+<!-- trailing comment -->

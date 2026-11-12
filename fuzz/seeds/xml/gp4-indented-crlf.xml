@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<psproject fmt="gp4" version="1000">
+  <volume>
+    <volume_type>pkg_ps4_app</volume_type>
+    <package content_id="UP0000-TEST00000_00-0000000000000000" passcode="00000000000000000000000000000000"/>
+  </volume>
+  <files img_no="0">
+    <file targ_path="sce_sys/icon0.png" orig_path="C:\work\icon0.png"/>
+  </files>
+  <rootdir>
+    <dir targ_name="sce_sys">
+      <dir targ_name="trophy"/>
+    </dir>
+  </rootdir>
+</psproject>

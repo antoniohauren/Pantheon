@@ -1,0 +1,7 @@
+<doc>
+  <p>mixed <b>bold</b> and <i>italic</i> text</p>
+  <p>  leading and trailing  </p>
+	<p v="a
+b	c
+d">lonecr</p>
+</doc>
