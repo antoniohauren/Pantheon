@@ -1,0 +1,5 @@
+/target/
+/pkgs/
+/fuzz/corpus/
+/fuzz/artifacts/
+*.partial
