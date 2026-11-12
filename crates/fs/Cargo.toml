@@ -1,0 +1,30 @@
+[package]
+name = "pantheon-fs"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+pantheon-core = { path = "../core" }
+
+# P5: the one Unix platform crate, for descriptor-relative no-follow opens.
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "=1.1.5", default-features = false, features = ["std", "fs"] }
+
+# D22: the MoveFileExW no-replace rename and BCryptGenRandom (D26).
+# Win32_Foundation (NTSTATUS, BOOL) comes in through the `Win32` parent feature.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", default-features = false, features = ["Win32_Storage_FileSystem", "Win32_Security_Cryptography"] }
+
+[dev-dependencies]
+pantheon-core = { path = "../core", features = ["testing"] }
+
+# Third unsafe exception (D22): opts out of the workspace forbid and denies instead,
+# so the two audited Windows calls in src/sys/windows.rs can carry an #[allow].
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "warn"
