@@ -173,8 +173,6 @@ fn as_source(e: Error) -> Error {
 
 #[cfg(test)]
 mod tests {
-    use pantheon_core::{Classify, ErrorKind};
-
     use super::*;
     use crate::testdir::TestDir;
 
@@ -240,6 +238,10 @@ mod tests {
         let dir = TestDir::new();
         std::fs::create_dir(dir.path().join("d")).unwrap();
         std::fs::write(dir.path().join("d/File"), b"").unwrap();
+        if dir.path().join("d/fILE").exists() {
+            // Case-insensitive filesystem (macOS, Windows): a collision cannot be created.
+            return;
+        }
         std::fs::write(dir.path().join("d/fILE"), b"").unwrap();
         assert_eq!(reason(dir.path()), Reason::CaseCollision);
     }
@@ -247,6 +249,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn rejects_symlinks_and_special_files() {
+        use pantheon_core::{Classify, ErrorKind};
+
         let dir = TestDir::new();
         let root = dir.path().join("root");
         std::fs::create_dir(&root).unwrap();
