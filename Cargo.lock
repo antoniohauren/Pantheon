@@ -7,5 +7,12 @@ name = "pantheon-core"
 version = "0.0.0"
 
 [[package]]
+name = "pantheon-json"
+version = "0.0.0"
+dependencies = [
+ "pantheon-core",
+]
+
+[[package]]
 name = "xtask"
 version = "0.0.0"
