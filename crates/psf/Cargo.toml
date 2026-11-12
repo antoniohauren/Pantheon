@@ -1,0 +1,16 @@
+[package]
+name = "pantheon-psf"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+pantheon-core = { path = "../core" }
+
+[dev-dependencies]
+pantheon-core = { path = "../core", features = ["testing"] }
+
+[lints]
+workspace = true

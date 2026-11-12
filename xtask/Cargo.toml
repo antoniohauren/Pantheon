@@ -8,3 +8,7 @@ license.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+# P14: parses and normalises JSON for `xtask diff` only; never ships.
+serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }

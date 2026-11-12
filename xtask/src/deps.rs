@@ -514,7 +514,7 @@ fn parse_args(args: &[String]) -> Result<Scope, String> {
     }
 }
 
-fn workspace_root() -> PathBuf {
+pub(crate) fn workspace_root() -> PathBuf {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     manifest_dir.parent().unwrap_or(manifest_dir).to_path_buf()
 }

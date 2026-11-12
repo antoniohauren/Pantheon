@@ -1,0 +1,22 @@
+[package]
+name = "pantheon-ps3"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+# Synthetic package builders for other crates' tests.
+testing = []
+
+[dependencies]
+pantheon-core = { path = "../core" }
+pantheon-crypto = { path = "../crypto" }
+pantheon-fs = { path = "../fs" }
+
+[dev-dependencies]
+pantheon-core = { path = "../core", features = ["testing"] }
+
+[lints]
+workspace = true

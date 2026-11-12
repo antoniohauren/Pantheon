@@ -49,6 +49,30 @@ of the settings and falls back to `icon0.png`.
   local private fixtures. The field mapping is documented, and the results are
   recorded without fingerprints.
 
+## JSON field mapping (pkg-tools → Pantheon)
+
+Identity: every field of `pkg-cli inspect --json` keeps its name, nesting and
+value. Pantheon adds only:
+
+| Field | Meaning |
+| --- | --- |
+| `schema` | `pantheon.athena.inspection/1` |
+| `source` | The input path as given; `null` if it is not UTF-8 |
+| `summary` | `title`, `title_id`, `app_version`, `category`, `content` (`game`, `patch`, `game_data`, `add_on`, `other`, `unknown`), `package_size`, `content_id` |
+| `header.mount_image_offset`, `header.mount_image_size` | PS4 header fields pkg-tools range-checks but does not print |
+
+`xtask diff athena` (`xtask/src/diff.rs`) enforces this: a missing or changed
+pkg-tools field fails, and so does any extra field not in the table. Pantheon's
+JSON is compact; pkg-tools' is pretty-printed, and the diff compares parsed values.
+
+## Differential results
+
+| Date | pkg-tools | Inputs | Outcome |
+| --- | --- | --- | --- |
+| 2026-11-12 | `20e3c3a` | 4 local PS4 PKGs (game, patch, 2 add-ons), 1 local PS3 retail PKG, 1 bare PARAM.SFO cut from a PS4 PKG | 6 of 6 pass |
+
+Inputs are the owner's private local fixtures (not committed, not named here).
+
 ## References
 
 pkg-tools `README.md` (Libraries, Validation and limits), `docs/compatibility.md` §3–4, §6.

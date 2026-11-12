@@ -1,0 +1,23 @@
+[package]
+name = "pantheon-cli"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Bare binary names (D17); per-god mains are thin (P11).
+[[bin]]
+name = "pantheon"
+path = "src/bin/pantheon.rs"
+
+[[bin]]
+name = "athena"
+path = "src/bin/athena.rs"
+
+[dependencies]
+athena = { path = "../athena" }
+pantheon-args = { path = "../args" }
+
+[lints]
+workspace = true

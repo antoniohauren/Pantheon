@@ -35,6 +35,7 @@
  L1  formats        pantheon-psf  pantheon-ps3  pantheon-ps4  pantheon-zar  pantheon-trp
                          │
  L0  foundation     pantheon-core  pantheon-fs  pantheon-crypto  pantheon-json  pantheon-xml
+                    pantheon-args  (CLI framework, D36)
 
  console (separate target)   hermes-wire (no_std, shared)   hermes-payload (no_std)
  tooling                     xtask (payload builder, dependency audit, fixtures)
@@ -57,6 +58,7 @@ depends on nothing in the workspace.
 | `pantheon-crypto` | The only crate that touches crypto/compression crates; exposes the narrow primitives formats need | RustCrypto, deflate, zstd |
 | `pantheon-json` | Streaming JSON **writer** (no parser needed) | none |
 | `pantheon-xml` | Bounded, non-validating XML subset **reader** and a small writer (GP4, trophy XML) | none |
+| `pantheon-args` | CLI framework for the gods' `cli` modules: argument parser, per-verb `Spec` and generated help, `Io`, exit codes (D36) | none |
 
 ### L1: formats
 
@@ -93,13 +95,15 @@ Every god crate has the same three modules:
 <god>/
   src/ops.rs     operations: plain functions taking a request + &Ctx, returning Result<Report, Error>
   src/model.rs   frontend-agnostic state machine: State, Intent, Effect (see §6)
-  src/cli.rs     pub fn run(args: Args, io: &mut Io) -> ExitCode
+  src/cli.rs     pub fn run(argv: &[OsString], io: &mut Io) -> u8   (pantheon-args, D36)
 ```
 
 - `ops` is the public library API. Other programs can use the god without its CLI or model.
 - `model` holds what a GUI needs (which inputs are chosen, which actions are
   enabled, progress, last error) as pure data. It has no toolkit types and is unit-tested.
-- `cli` holds argument parsing and text/JSON rendering for that god only.
+- `cli` holds argument specs and text/JSON rendering for that god only. The parser
+  itself is shared, in `pantheon-args` (D36). `run` returns the exit code as a `u8`
+  so tests can compare it; the binary turns it into an `ExitCode`.
 
 Per-god documents: [Athena](gods/athena.md), [Hades](gods/hades.md),
 [Hermes](gods/hermes.md), [Proteus](gods/proteus.md), [Dionysus](gods/dionysus.md),
@@ -257,7 +261,7 @@ Pantheon/
   Cargo.toml              workspace; [workspace.lints] forbid unsafe_code (exceptions in §9)
   rust-toolchain.toml     pinned toolchain + x86_64-unknown-none target
   crates/
-    core/ fs/ crypto/ json/ xml/
+    core/ fs/ crypto/ json/ xml/ args/
     psf/ ps3/ ps4/ zar/ trp/ package/
     athena/ hades/ hermes/ proteus/ dionysus/ nike/ hephaestus/
     app/ cli/ gtk/ gpui/

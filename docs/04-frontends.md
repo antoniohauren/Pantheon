@@ -128,7 +128,7 @@ touches output.
 
 ### 6.3 Argument parsing
 
-Our own small parser (P4): it handles long/short flags, `--key=value` and
+Our own small parser (P4), in `pantheon-args` (D36): it handles long/short flags, `--key=value` and
 `--key value`, positionals, `--`, and non-UTF-8 paths through `OsString`. Help
 text is generated from a static per-verb spec, so `help` and parsing cannot drift
 apart.

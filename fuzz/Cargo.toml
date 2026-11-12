@@ -14,11 +14,35 @@ cargo-fuzz = true
 libfuzzer-sys = "=0.4.13"
 pantheon-core = { path = "../crates/core" }
 pantheon-xml = { path = "../crates/xml" }
+pantheon-psf = { path = "../crates/psf" }
+pantheon-ps3 = { path = "../crates/ps3" }
+pantheon-ps4 = { path = "../crates/ps4" }
 roxmltree = { version = "=0.21.1", default-features = false, features = ["std"] }
 
 [[bin]]
 name = "fuzz_xml"
 path = "fuzz_targets/fuzz_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_sfo"
+path = "fuzz_targets/fuzz_sfo.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_ps3_pkg"
+path = "fuzz_targets/fuzz_ps3_pkg.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_ps4_pkg"
+path = "fuzz_targets/fuzz_ps4_pkg.rs"
 test = false
 doc = false
 bench = false

@@ -1,0 +1,19 @@
+[package]
+name = "pantheon-package"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+pantheon-core = { path = "../core" }
+pantheon-ps3 = { path = "../ps3" }
+pantheon-ps4 = { path = "../ps4" }
+
+[dev-dependencies]
+pantheon-ps3 = { path = "../ps3", features = ["testing"] }
+pantheon-ps4 = { path = "../ps4", features = ["testing"] }
+
+[lints]
+workspace = true
