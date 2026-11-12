@@ -138,21 +138,21 @@ apart.
 | pkg-tools | Pantheon |
 | --- | --- |
 | `inspect INPUT [--json]` | `athena inspect INPUT [--json]` |
-| (GUI only) | `athena artwork INPUT --icon0\|--pic1 OUT.png` (proposed, reuses existing reads) |
+| (GUI only) | `athena artwork INPUT --icon0\|--pic1 OUT.png` (D29) |
 | `extract INPUT OUT` | `hades extract INPUT OUT [--select PATH]…` (P12) |
 | (GUI Explore) | `hades list INPUT [--json]` |
 | (GUI Send) | `hermes send --ps4 IP PKG… [--loader goldhen\|tcp:PORT] [--payload FILE]` |
-| — | `hermes probe --ps4 IP` (checks that the loader is reachable and our payload answers; proposed) |
+| — | `hermes probe --ps4 IP` (checks that the loader is reachable and our payload answers; D29) |
 | `pack DIR OUT.zar` | `proteus pack DIR OUT.zar` |
 | `convert GAME.pkg OUT.zar [--update U.pkg]` | `proteus convert GAME.pkg OUT.zar [--update U.pkg]` |
 | `liberate GAME.pkg LICENSE.rap OUT.pkg` | `dionysus liberate SRC --rap R (--to-pkg OUT.pkg \| --to-folder PARENT)`; `--rap` optional, auto-found as in GUI |
 | (GUI pre-check) | `dionysus check SRC` (needs liberation? which RAP matches?) |
-| `trophies INPUT [--json]` | `nike list INPUT [--json]`, `nike icons INPUT OUTDIR` (proposed) |
+| `trophies INPUT [--json]` | `nike list INPUT [--json]`, `nike icons INPUT OUTDIR` (D29) |
 | `gp4 create/preflight/image` | `hephaestus gp4 create/preflight/image` |
 | `fpkg preflight/rebuild` | `hephaestus fpkg preflight/rebuild` |
 
-Every "proposed" row is a small addition on top of existing library functions.
-Remove any of them the owner does not want.
+The rows marked D29 are new commands, each a small addition on top of existing
+library functions.
 
 ### 6.5 Exit codes
 

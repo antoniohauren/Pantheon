@@ -25,7 +25,7 @@ pub fn usize_len(len: u64, cap: Limit) -> Result<usize, LimitError>; // before a
 
 Format crates **never** do `as usize` on input values, and never use `+`/`*` on
 offsets without these helpers. Clippy `arithmetic_side_effects` and
-`cast_possible_truncation` are set to `deny` in L0/L1 crates (proposed).
+`cast_possible_truncation` are set to `deny` in L0/L1 crates (D30).
 
 ### Binary readers
 
@@ -85,7 +85,7 @@ A package path component is accepted only if it:
 Paths are at most 4,096 bytes and 128 components. These rules are pkg-tools'
 `pkg-fs` policy, plus Windows rules made explicit.
 
-**Proposed:** keep a separate RPCS3 rule, where generated top-level folder names
+**D32:** a separate RPCS3 rule, where generated top-level folder names
 are capped at 31 UTF-8 bytes with the suffix preserved. It is applied by the
 gods that generate names (Hades, Dionysus), not by the general validator.
 
@@ -103,7 +103,7 @@ tree.finish()?;                         // removes the incomplete marker
   pending the Phase 1 spike. Until that spike passes, `OwnerOnly` on Windows
   fails with `Unsupported` rather than quietly writing a readable file. Hephaestus
   uses it for GP4 output.
-- **Proposed (P15):** `create_new` creates a scratch directory
+- **P15:** `create_new` creates a scratch directory
   `.<name>.pantheon-<random>.partial` in the parent, writes the marker
   `.pantheon-incomplete` inside it **first**, then renames the directory to `name`
   without replacing anything (`renameat2(RENAME_NOREPLACE)` on Linux,
@@ -126,8 +126,7 @@ tree.finish()?;                         // removes the incomplete marker
     than Unix**: `std` has no handle-relative open on Windows, so every component
     is re-checked by path, and a parent swapped between the check and the open is
     caught only if it becomes a reparse point. The docs must not claim Unix-level
-    race safety on Windows. **Proposed and
-    pending the Phase 1 spike:** whether `std` alone (via
+    race safety on Windows. **Phase 1 spike:** whether `std` alone (via
     `std::os::windows::fs::OpenOptionsExt::custom_flags`) is enough, or a small
     Windows crate is needed (decision P5).
 - The destination parent chain is checked for symlinks before creation.
@@ -158,8 +157,8 @@ out.publish()?;                                  // no-overwrite
   trees (P15). The final name then appears only once the file is complete.
 - **Fallback 2**, only where neither works: write directly to `final` opened with
   `create_new`. A failure then leaves `final` in place. It is reported as
-  `Incomplete`, and the name is not reused. **Proposed**, and this needs owner
-  confirmation, because this fallback means a partial file can carry the final name.
+  `Incomplete`, and the name is not reused. Accepted by the owner (D28), knowing
+  that this fallback means a partial file can carry the final name.
   The Phase 1 spike records which filesystems reach fallback 2.
 - A fallback is taken only for the specific "not supported" errors (for example
   `EPERM`/`EOPNOTSUPP`/`EXDEV` on Unix, `ERROR_INVALID_FUNCTION`/`ERROR_NOT_SUPPORTED`

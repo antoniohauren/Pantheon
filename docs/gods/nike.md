@@ -31,7 +31,7 @@ candidates, and reports progress.
 
 ## CLI
 
-`nike list INPUT [--json]` (icons left out of JSON). Proposed: `nike icons INPUT OUTDIR`.
+`nike list INPUT [--json]` (icons left out of JSON). Also `nike icons INPUT OUTDIR` (D29).
 
 ## Model / GUI
 

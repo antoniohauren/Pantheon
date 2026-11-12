@@ -29,7 +29,7 @@ GUI each render it themselves. Binary previews are truncated by the **frontend**
 
 ## CLI
 
-`athena inspect INPUT [--json]`. Proposed: `athena artwork INPUT --icon0|--pic1 OUT.png`.
+`athena inspect INPUT [--json]`. Also `athena artwork INPUT --icon0|--pic1 OUT.png` (D29).
 JSON schema `pantheon.athena.inspection/1`. It keeps pkg-tools' rules: numeric enums
 stay numeric, and raw data/padding/keys get hex fields.
 

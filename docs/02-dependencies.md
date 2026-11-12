@@ -63,7 +63,7 @@ dependencies apart from `rustix`, `windows-sys` and `ctrlc`.**
 | `roxmltree` | Bounded XML subset reader: elements, attributes, text, the 5 predefined entities and numeric character references; **no** DTD, external entities or processing-instruction semantics. Limits on depth, attribute count and total size | `pantheon-xml` |
 | `flate2` | `miniz_oxide` directly | `pantheon-crypto` |
 | DPI `payload.bin` (GPL-3 binary) | Our own `hermes-payload` | `console/` |
-| `blueprint-compiler` (build-time tool) | **Proposed P10:** widgets built in Rust code (see [frontends](04-frontends.md#3-gtk-frontend-pantheon-gtk)) | `pantheon-gtk` |
+| `blueprint-compiler` (build-time tool) | **P10:** widgets built in Rust code (see [frontends](04-frontends.md#3-gtk-frontend-pantheon-gtk)) | `pantheon-gtk` |
 | `linuxdeploy` (downloaded by script) | Packaging per D24 (AppImage tool chosen in Phase 11, never downloaded unpinned) | packaging |
 
 `pantheon-xml` is checked by a **differential test** against `roxmltree` as a

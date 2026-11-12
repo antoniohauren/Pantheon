@@ -4,7 +4,8 @@ Every design choice in these documents is in one of three states:
 
 - **Decided**: the owner chose it explicitly.
 - **Proposed**: the author of these docs chose it as a default. It stands until
-  the owner changes it, and it must not be treated as an owner decision.
+  the owner changes it, and it must not be treated as an owner decision. Once the
+  owner accepts it, its ID stays the same and it moves to *Accepted proposals*.
 - **Open**: it needs an owner answer before the phase that depends on it starts.
 
 When a decision changes, edit this file first, then the documents that depend on it.
@@ -41,7 +42,10 @@ When a decision changes, edit this file first, then the documents that depend on
 | D26 | Hermes's session token comes from the **OS random source**: `/dev/urandom` on Unix (std only) and `BCryptGenRandom` (system-preferred RNG) on Windows, via `windows-sys` in `pantheon-fs` (D22). It is exposed as `pantheon_fs::os_random`. |
 | D27 | **`gods/hermes.md` is approved** as the Phase 4 design, including the clean-room rule (DPI's GPL source is not read) and the payload defaults: a 64 KiB size budget and a 5-minute idle timeout. Protocol details may still change after the spikes S1–S5, recorded in this log. |
 
-## Proposed (author defaults, need owner review)
+## Accepted proposals (owner, 2026-11-12)
+
+All of P1–P17 were reviewed and accepted by the owner. They now carry the same
+weight as the D-entries.
 
 | ID | Proposal | Why |
 | --- | --- | --- |
@@ -62,6 +66,18 @@ When a decision changes, edit this file first, then the documents that depend on
 | P15 | `OutputTree::create_new` builds under a scratch name and renames it to the final name without replacing (`renameat2(RENAME_NOREPLACE)` on Linux, `renamex_np(RENAME_EXCL)` on macOS, `MoveFileExW` without `MOVEFILE_REPLACE_EXISTING` on Windows). The incomplete marker is still written first. | Closes the crash window between creating the directory and writing its marker. |
 | P16 | Settings are written by atomic replace (scratch file + rename), after re-reading the file and merging only the writer's own section. | The hub and the standalone apps can run at the same time and share one file. |
 | P17 | Advisory RUSTSEC-2023-0071 (`rsa`, Marvin attack) is accepted and recorded in the allowlist. | It targets private-key operations on secret keys. Pantheon only uses public, fixed fake keys. |
+
+## Smaller items accepted (owner, 2026-11-12)
+
+| ID | Decision |
+| --- | --- |
+| D28 | FAT32/exFAT last-resort fallback: write directly to the final name with `create_new`. A failure is `Incomplete`, names the partial file, and the name is never reused ([foundation §3](03-foundation.md#3-output-files-single-file-publication)). |
+| D29 | New CLI commands: `athena artwork`, `hermes probe`, `nike icons`, `dionysus check`. |
+| D30 | Clippy `arithmetic_side_effects` and `cast_possible_truncation` are `deny` in L0/L1 crates. |
+| D31 | CLI exit codes as in [architecture §4.1](01-architecture.md#41-errors): 2 usage, 3 malformed, 4 unsupported, 5 limit, 6 key, 7 unsafe output, 8 I/O, 9 network, 10 partial, 130 cancelled. |
+| D32 | Generated top-level folder names (Hades, Dionysus) are capped at 31 UTF-8 bytes with the suffix kept (RPCS3 rule). |
+| D33 | The Hermes payload targets `x86_64-unknown-none`. Spike S5 confirms it, and a change needs a log entry. |
+| D34 | The Hermes v1 wire format in [hermes.md](gods/hermes.md#wire-protocol-hermes-wire-version-1) is accepted. Changes after spikes S1–S5 are recorded here. |
 
 ## Open (owner answer needed)
 

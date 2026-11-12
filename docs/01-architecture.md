@@ -130,7 +130,7 @@ See [frontends, apps and CLI](04-frontends.md). Toolkit crates (`gtk4`,
 | Crate | Target | Responsibility |
 | --- | --- | --- |
 | `hermes-wire` | `no_std`, host + console | Hermes protocol message types, encode/decode, limits. The same code runs on both ends. |
-| `hermes-payload` | `x86_64-unknown-none` (proposed) | The PS4 payload: connect back, receive a job, call the installer service, report status |
+| `hermes-payload` | `x86_64-unknown-none` (D33) | The PS4 payload: connect back, receive a job, call the installer service, report status |
 | `xtask` | host | `cargo xtask payload` builds and converts the payload into a flat binary, then checks it; `cargo xtask deps` audits dependencies |
 
 Details: [Hermes](gods/hermes.md) (approved, D27).
@@ -147,7 +147,7 @@ take `--payload FILE`, so they need no console target.
   returns both. This redesign removes them.)
 - Every error maps to one `pantheon_core::ErrorKind`:
 
-  | Kind | Meaning | CLI exit code (proposed) |
+  | Kind | Meaning | CLI exit code (D31) |
   | --- | --- | --- |
   | `Malformed` | Input violates the format | 3 |
   | `Unsupported` | Valid but outside the supported matrix | 4 |

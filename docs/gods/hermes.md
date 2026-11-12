@@ -6,8 +6,7 @@
 **Status: approved (D27).** Decisions it
 rests on: D10 (no third-party console binary), D11 (Rust `no_std` payload), D21
 (optional embed; GoldHEN BinLoader + generic TCP loader), D26 (token randomness), P7 (own wire protocol).
-Items marked **Spike** are unknown until tried on a console. Items marked
-**Proposed** are author defaults.
+Items marked **Spike** are unknown until tried on a console.
 
 ## Scope (parity)
 
@@ -69,7 +68,7 @@ host (hermes crate, std)                         console (hermes-payload, no_std
 
 ## Wire protocol (`hermes-wire`, version 1)
 
-**Proposed.** Frames are `u32 length (LE) + u8 type + body`. Integers are little
+Accepted as v1 (D34). Frames are `u32 length (LE) + u8 type + body`. Integers are little
 endian. Strings are `u32 length + UTF-8 bytes`.
 
 | Type | Direction | Body |
