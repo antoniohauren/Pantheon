@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<trophyconf version="1.0">
+  <title-name>Prüfung — テスト</title-name>
+  <trophy id="000"><name>Ünïcödé 😀</name><detail>Multi&#x2D;byte &#233; &#x1F600; text.</detail></trophy>
+</trophyconf>

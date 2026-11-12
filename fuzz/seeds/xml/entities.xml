@@ -1,0 +1,1 @@
+<doc a="&lt;&gt;&amp;&apos;&quot;" b='"double" inside single' c="'single' inside double">&lt;tag&gt; &amp;amp; &apos;q&apos; &quot;d&quot; ]]&gt;</doc>

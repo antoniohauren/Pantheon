@@ -1,0 +1,18 @@
+[package]
+name = "pantheon-xml"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+pantheon-core = { path = "../core" }
+
+[dev-dependencies]
+pantheon-core = { path = "../core", features = ["testing"] }
+# Differential oracle only (docs/02-dependencies.md §3, §5).
+roxmltree = { version = "=0.21.1", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true
