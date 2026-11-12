@@ -2,21 +2,27 @@
 
 use std::process::ExitCode;
 
+mod deps;
+
 /// Exit code for bad usage (D31).
 const EXIT_USAGE: u8 = 2;
 /// Exit code for a task that exists but is not implemented yet (D31 "unsupported").
 const EXIT_UNSUPPORTED: u8 = 4;
 
-/// Known tasks and the roadmap phase that implements each one.
-const TASKS: &[(&str, &str, &str)] = &[
+/// Known tasks and, for tasks not implemented yet, the roadmap phase that implements them.
+const TASKS: &[(&str, &str, Option<&str>)] = &[
+    ("deps", "audit Cargo.lock against deps-allowlist.txt", None),
+    ("fixtures", "generate synthetic fixtures", Some("Phase 1")),
     (
-        "deps",
-        "audit Cargo.lock against deps-allowlist.txt",
-        "Phase 1",
+        "diff",
+        "differential run against pkg-tools",
+        Some("Phase 2"),
     ),
-    ("fixtures", "generate synthetic fixtures", "Phase 1"),
-    ("diff", "differential run against pkg-tools", "Phase 2"),
-    ("payload", "build the Hermes console payload", "Phase 4"),
+    (
+        "payload",
+        "build the Hermes console payload",
+        Some("Phase 4"),
+    ),
 ];
 
 fn usage() -> String {
@@ -33,10 +39,12 @@ fn run(args: &[String]) -> (u8, String) {
         return (EXIT_USAGE, usage());
     };
     match TASKS.iter().find(|(name, _, _)| name == task) {
-        Some((name, _, phase)) => (
+        Some(("deps", _, _)) => deps::run(&args[1..]),
+        Some((name, _, Some(phase))) => (
             EXIT_UNSUPPORTED,
             format!("xtask {name}: not implemented yet ({phase})"),
         ),
+        Some((name, _, None)) => (EXIT_UNSUPPORTED, format!("xtask {name}: no handler")),
         None if task == "help" || task == "--help" || task == "-h" => (0, usage()),
         None => (
             EXIT_USAGE,
@@ -70,8 +78,11 @@ mod tests {
         assert_eq!(code(&[]), EXIT_USAGE);
         assert_eq!(code(&["help"]), 0);
         assert_eq!(code(&["nope"]), EXIT_USAGE);
-        for (name, _, _) in TASKS {
-            assert_eq!(code(&[name]), EXIT_UNSUPPORTED);
+        assert_eq!(code(&["deps", "--bogus"]), EXIT_USAGE);
+        for (name, _, phase) in TASKS {
+            if phase.is_some() {
+                assert_eq!(code(&[name]), EXIT_UNSUPPORTED);
+            }
         }
     }
 }

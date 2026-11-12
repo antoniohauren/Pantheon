@@ -24,11 +24,11 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+      - run: cargo xtask deps --core
       - name: Skipped gates
         shell: bash
         run: |
           {
             echo "### Skipped gates"
-            echo "- \`cargo xtask deps --core\`: not implemented until Phase 1"
             echo "- GTK clippy + GUI/console build job: no GUI or console crates yet"
           } >> "$GITHUB_STEP_SUMMARY"

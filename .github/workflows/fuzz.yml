@@ -1,0 +1,26 @@
+name: Fuzz
+
+# D20: cargo-fuzz layer, scheduled and on demand. Needs nightly; the stable
+# Corruptor layer runs in every `cargo test` instead.
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [fuzz_xml]
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install nightly --profile minimal
+      - run: cargo +nightly install cargo-fuzz --locked
+      - run: cargo +nightly fuzz run ${{ matrix.target }} fuzz/seeds/xml -- -max_total_time=600
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-artifacts
+          path: fuzz/artifacts/

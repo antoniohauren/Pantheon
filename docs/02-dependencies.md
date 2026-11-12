@@ -55,6 +55,14 @@ lockfile, with the GUI included, has 138 packages. Phase 1 must measure Pantheon
 L0–L3 count and record it here. Target: **fewer than pkg-tools, with zero non-crypto/compression direct
 dependencies apart from `rustix`, `windows-sys` and `ctrlc`.**
 
+**Phase 1 measurement (2026-11-12, Linux host):** `cargo xtask deps --core` counts
+**51** third-party crates in the normal+build graph of the L0 crates (46 of them
+through `pantheon-crypto`, mostly `rsa` and its `num-bigint-dig`/`rand` chain; the
+rest are `rustix` and its transitive crates). `deps-allowlist.txt` lists 63 locked crates:
+the 51, plus Windows-only crates, build-only `autocfg`, the dev-only `roxmltree`
+and its `memchr`, and `base64ct` (locked but not built). L1–L3 and `ctrlc` are
+not in the graph yet.
+
 ## 3. What is removed compared with pkg-tools
 
 | pkg-tools crate | Replacement | Where |
@@ -93,7 +101,7 @@ only.
 | Crate | Purpose |
 | --- | --- |
 | `roxmltree` | Differential oracle for `pantheon-xml` |
-| `libfuzzer-sys` | cargo-fuzz targets in `fuzz/` (D20). Nightly, scheduled CI job only |
+| `libfuzzer-sys` | cargo-fuzz targets in `fuzz/` (D20). Nightly, scheduled CI job only. `fuzz/` is a standalone package with its own lockfile, so `cargo xtask deps` does not audit it; its version is recorded in `fuzz/Cargo.toml` |
 | `serde_json` | `xtask` only: parses and normalises JSON for `xtask diff` (P14) |
 | `pantheon-testalloc` (ours) | Counting allocator for allocation-bound tests (D14) |
 
