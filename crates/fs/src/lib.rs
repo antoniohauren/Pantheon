@@ -17,7 +17,7 @@ mod sys;
 mod tree;
 
 pub use error::{Error, Reason};
-pub use file::OutputFile;
+pub use file::{OutputFile, ScratchFile};
 pub use name::{
     MARKER, MAX_COMPONENT_BYTES, MAX_PATH_BYTES, MAX_PATH_COMPONENTS, PKG_TOOLS_MARKER,
     validate_component, validate_path,
