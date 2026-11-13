@@ -339,6 +339,7 @@ dependencies = [
  "athena",
  "hades",
  "pantheon-args",
+ "proteus",
 ]
 
 [[package]]
@@ -421,6 +422,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pantheon-zar"
+version = "0.0.0"
+dependencies = [
+ "pantheon-core",
+ "pantheon-crypto",
+ "pantheon-fs",
+]
+
+[[package]]
 name = "pkcs1"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -457,6 +467,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "proteus"
+version = "0.0.0"
+dependencies = [
+ "pantheon-args",
+ "pantheon-core",
+ "pantheon-fs",
+ "pantheon-package",
+ "pantheon-ps3",
+ "pantheon-ps4",
+ "pantheon-psf",
+ "pantheon-zar",
 ]
 
 [[package]]
@@ -703,6 +727,9 @@ dependencies = [
 name = "xtask"
 version = "0.0.0"
 dependencies = [
+ "pantheon-core",
+ "pantheon-crypto",
+ "pantheon-zar",
  "serde_json",
 ]
 

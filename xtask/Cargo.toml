@@ -10,5 +10,9 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+# `xtask diff proteus` reads both tools' archives back and hashes their files.
+pantheon-core = { path = "../crates/core" }
+pantheon-crypto = { path = "../crates/crypto" }
+pantheon-zar = { path = "../crates/zar" }
 # P14: parses and normalises JSON for `xtask diff` only; never ships.
 serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }

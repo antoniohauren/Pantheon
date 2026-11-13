@@ -5,6 +5,7 @@ use std::process::ExitCode;
 mod deps;
 mod diff;
 mod diff_hades;
+mod diff_proteus;
 
 /// Exit code for bad usage (D31).
 const EXIT_USAGE: u8 = 2;
