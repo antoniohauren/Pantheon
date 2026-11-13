@@ -12,6 +12,7 @@ members = [
     "crates/ps4",
     "crates/package",
     "crates/athena",
+    "crates/hades",
     "crates/cli",
     "xtask",
 ]
@@ -28,6 +29,7 @@ default-members = [
     "crates/ps4",
     "crates/package",
     "crates/athena",
+    "crates/hades",
     "crates/cli",
     "crates/args",
     "crates/psf",

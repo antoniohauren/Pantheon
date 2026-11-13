@@ -29,7 +29,8 @@ pkg-tools at `20e3c3a` is the oracle during the rewrite:
 - `xtask diff <god> <input>` runs both CLIs and compares normalised JSON (parsed
   with the dev-only `serde_json` in `xtask`, P14)
   (inspect, list, trophies) or output manifests (path, size, SHA-256 for
-  extract, convert, liberate, rebuild).
+  extract, convert, liberate, rebuild). `xtask diff hades` compares the two
+  extracted trees byte for byte, which is stricter than comparing hashes.
 - Private inputs stay under an ignored `pkgs/` directory. Reports print
   pass/fail and counts, **never** hashes or names of private content.
 - A god reaches parity when its differential suite passes on every local fixture

@@ -89,6 +89,15 @@ impl Args {
             .find(|(name, _)| *name == long)
             .and_then(|(_, v)| v.as_deref())
     }
+
+    /// Every value given for a repeatable option, in order.
+    pub fn values(&self, long: &str) -> Vec<&OsStr> {
+        self.options
+            .iter()
+            .filter(|(name, _)| *name == long)
+            .filter_map(|(_, v)| v.as_deref())
+            .collect()
+    }
 }
 
 /// What the user asked for.

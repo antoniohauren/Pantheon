@@ -57,6 +57,19 @@ disabled while nothing is selected, with that as the reason).
 - Differential: path, size and SHA-256 manifest vs. pkg-tools on both local PS4
   fixtures (4,583 files / 1,483 directories) and the PS3 fixture.
 
+## Differential results
+
+`cargo xtask diff hades INPUT…` (`xtask/src/diff_hades.rs`) runs `pkg-tools extract`
+and `hades extract` on each input and compares the two trees: the same paths and
+kinds, the same file sizes and byte-identical file contents. Inputs that both tools
+refuse also pass.
+
+| Date | pkg-tools | Inputs | Outcome |
+| --- | --- | --- | --- |
+| 2026-11-12 | `20e3c3a` | 1 local PS3 retail PKG, 2 local PS4 PKGs (game, patch), 2 local synthetic PS4 PKGs (one with > 4 GiB of files), 1 local PS4 add-on (both refuse) | 6 of 6 pass |
+
+Inputs are the owner's private local fixtures (not committed, not named here).
+
 ## Not supported (carried)
 
 PS4 DLC, PS4 retail, delta patches, 64-bit PFS inodes, per-file PFS compression;

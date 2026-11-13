@@ -15,11 +15,18 @@ struct God {
     run: fn(&[OsString], &mut Io<'_>) -> u8,
 }
 
-const GODS: &[God] = &[God {
-    name: "athena",
-    summary: athena::cli::COMMAND.summary,
-    run: athena::cli::run,
-}];
+const GODS: &[God] = &[
+    God {
+        name: "athena",
+        summary: athena::cli::COMMAND.summary,
+        run: athena::cli::run,
+    },
+    God {
+        name: "hades",
+        summary: hades::cli::COMMAND.summary,
+        run: hades::cli::run,
+    },
+];
 
 const NAME: &str = "pantheon";
 

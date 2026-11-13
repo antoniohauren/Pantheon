@@ -1,5 +1,5 @@
-//! `cargo xtask diff athena INPUT…`: differential inspect against pkg-tools
-//! (docs/05-testing.md §3). The oracle binary comes from `PANTHEON_PKG_TOOLS`.
+//! `cargo xtask diff athena|hades INPUT…`: differential runs against pkg-tools
+//! (docs/05-testing.md §3). `hades` lives in [`crate::diff_hades`]. The oracle binary comes from `PANTHEON_PKG_TOOLS`.
 //!
 //! Field mapping (docs/gods/athena.md): identity. Every field pkg-tools emits
 //! must appear in Pantheon's output with an equal value; Pantheon may only add
@@ -97,7 +97,7 @@ fn run_json(program: &Path, args: &[&str], input: &Path) -> Result<Option<Value>
         .map_err(|e| format!("{} printed invalid JSON: {e}", program.display()))
 }
 
-fn build_athena(root: &Path) -> Result<PathBuf, String> {
+fn build_god(root: &Path, god: &str) -> Result<PathBuf, String> {
     let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
     let status = Command::new(cargo)
         .current_dir(root)
@@ -108,18 +108,18 @@ fn build_athena(root: &Path) -> Result<PathBuf, String> {
             "-p",
             "pantheon-cli",
             "--bin",
-            "athena",
+            god,
         ])
         .status()
         .map_err(|e| format!("running cargo build: {e}"))?;
     if !status.success() {
-        return Err("cargo build of athena failed".into());
+        return Err(format!("cargo build of {god} failed"));
     }
     let target =
         std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from);
     Ok(target
         .join("release")
-        .join(format!("athena{}", std::env::consts::EXE_SUFFIX)))
+        .join(format!("{god}{}", std::env::consts::EXE_SUFFIX)))
 }
 
 /// Entry point for `cargo xtask diff <god> INPUT…`.
@@ -128,14 +128,14 @@ pub fn run(args: &[String]) -> (u8, String) {
         (
             EXIT_USAGE,
             format!(
-                "usage: {ORACLE_ENV}=/path/to/pkg-tools cargo xtask diff athena INPUT...\n  (only `athena` is implemented)"
+                "usage: {ORACLE_ENV}=/path/to/pkg-tools cargo xtask diff athena|hades INPUT..."
             ),
         )
     };
     let Some((god, inputs)) = args.split_first() else {
         return usage();
     };
-    if god != "athena" || inputs.is_empty() {
+    if !["athena", "hades"].contains(&god.as_str()) || inputs.is_empty() {
         return usage();
     }
     let Some(oracle) = std::env::var_os(ORACLE_ENV).map(PathBuf::from) else {
@@ -146,7 +146,8 @@ pub fn run(args: &[String]) -> (u8, String) {
             ),
         );
     };
-    let ours = match build_athena(&workspace_root()) {
+    let root = workspace_root();
+    let ours = match build_god(&root, god) {
         Ok(path) => path,
         Err(e) => return (EXIT_IO, format!("xtask diff: {e}")),
     };
@@ -155,16 +156,28 @@ pub fn run(args: &[String]) -> (u8, String) {
     for (n, input) in inputs.iter().enumerate() {
         let number = n.saturating_add(1);
         let input = Path::new(input);
-        let result = run_json(&oracle, &["inspect"], input)
-            .and_then(|a| run_json(&ours, &["inspect"], input).map(|b| (a, b)));
-        let lines = match result {
-            Err(e) => return (EXIT_IO, format!("xtask diff: input {number}: {e}")),
-            Ok((None, None)) => Vec::new(),
-            Ok((Some(_), None)) => vec!["pkg-tools succeeded, athena failed".to_owned()],
-            Ok((None, Some(_))) => vec!["pkg-tools failed, athena succeeded".to_owned()],
-            Ok((Some(a), Some(b))) => compare(&a, &b),
+        let lines = if god == "hades" {
+            let target = std::env::var_os("CARGO_TARGET_DIR")
+                .map_or_else(|| root.join("target"), PathBuf::from);
+            let work = target.join("xtask-diff-hades").join(number.to_string());
+            match crate::diff_hades::run_input(&oracle, &ours, input, &work) {
+                Err(e) => return (EXIT_IO, format!("xtask diff: input {number}: {e}")),
+                Ok(lines) => lines,
+            }
+        } else {
+            let result = run_json(&oracle, &["inspect"], input)
+                .and_then(|a| run_json(&ours, &["inspect"], input).map(|b| (a, b)));
+            match result {
+                Err(e) => return (EXIT_IO, format!("xtask diff: input {number}: {e}")),
+                Ok((None, None)) => Vec::new(),
+                Ok((Some(_), None)) => vec!["pkg-tools succeeded, athena failed".to_owned()],
+                Ok((None, Some(_))) => vec!["pkg-tools failed, athena succeeded".to_owned()],
+                Ok((Some(a), Some(b))) => compare(&a, &b),
+            }
         };
-        if lines.is_empty() {
+        if let Some(ok) = lines.first().filter(|l| l.starts_with("ok:")) {
+            report.push_str(&format!("input {number}: pass ({ok})\n"));
+        } else if lines.is_empty() {
             report.push_str(&format!("input {number}: pass\n"));
         } else {
             failed = failed.saturating_add(1);
@@ -179,7 +192,7 @@ pub fn run(args: &[String]) -> (u8, String) {
     }
     let total = inputs.len();
     report.push_str(&format!(
-        "diff athena: {} of {total} inputs pass",
+        "diff {god}: {} of {total} inputs pass",
         total.saturating_sub(failed)
     ));
     (if failed == 0 { 0 } else { EXIT_DIFF }, report)

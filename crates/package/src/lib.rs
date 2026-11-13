@@ -1,9 +1,11 @@
 //! pantheon-package: input detection by magic bytes and one handle over PS3 and
 //! PS4 packages (architecture §3, L1b).
 //!
-//! shortcut: covers detection, identity and artwork reads only; the `Tree`
-//! listing, entry reads and extraction land with Hades (Phase 3). ZAR detection
-//! lands with Proteus (its magic is in the footer, not the first bytes).
+//! [`Contents`] is the application tree of either platform: a [`Tree`] listing,
+//! entry reads and [`Selection`] resolution, shared by Hades and the GUIs.
+//!
+//! shortcut: ZAR detection lands with Proteus (its magic is in the footer, not
+//! the first bytes).
 
 #![deny(clippy::arithmetic_side_effects, clippy::cast_possible_truncation)]
 
@@ -11,6 +13,12 @@ use std::fmt;
 use std::io::{self, Read, Seek, SeekFrom};
 
 use pantheon_core::{Classify, ErrorKind, Limits};
+
+mod contents;
+mod tree;
+
+pub use contents::{Contents, EntryReader};
+pub use tree::{Node, NodeKind, Resolved, Selection, Tree};
 
 pub use pantheon_ps3 as ps3;
 pub use pantheon_ps4 as ps4;
@@ -135,6 +143,16 @@ pub enum Error {
     Ps3(ps3::Error),
     Ps4(ps4::Error),
     Io(io::Error),
+    /// A selection named nothing.
+    EmptySelection,
+    /// A selected path is not in the package's tree.
+    UnknownPath(String),
+    /// A selection index is outside the tree.
+    UnknownIndex(u32),
+    /// The selection was made against an earlier listing.
+    StaleSelection,
+    /// A directory node was opened as a file.
+    NotAFile(String),
 }
 
 impl fmt::Display for Error {
@@ -149,6 +167,13 @@ impl fmt::Display for Error {
             Error::Ps3(e) => e.fmt(f),
             Error::Ps4(e) => e.fmt(f),
             Error::Io(e) => write!(f, "I/O failure: {e}"),
+            Error::EmptySelection => f.write_str("the selection is empty"),
+            Error::UnknownPath(p) => write!(f, "{p:?} is not in the package's application tree"),
+            Error::UnknownIndex(i) => write!(f, "selection index {i} is outside the tree"),
+            Error::StaleSelection => {
+                f.write_str("the selection belongs to an earlier listing; list the package again")
+            }
+            Error::NotAFile(p) => write!(f, "{p:?} is a directory, not a file"),
         }
     }
 }
@@ -156,7 +181,12 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::NotAPackage(_) => None,
+            Error::NotAPackage(_)
+            | Error::EmptySelection
+            | Error::UnknownPath(_)
+            | Error::UnknownIndex(_)
+            | Error::StaleSelection
+            | Error::NotAFile(_) => None,
             Error::Ps3(e) => Some(e),
             Error::Ps4(e) => Some(e),
             Error::Io(e) => Some(e),
@@ -171,6 +201,12 @@ impl Classify for Error {
             Error::Ps3(e) => e.kind(),
             Error::Ps4(e) => e.kind(),
             Error::Io(_) => ErrorKind::Io,
+            // Selections come from the user (CLI `--select`, GUI picks).
+            Error::EmptySelection
+            | Error::UnknownPath(_)
+            | Error::UnknownIndex(_)
+            | Error::StaleSelection
+            | Error::NotAFile(_) => ErrorKind::Usage,
         }
     }
 }

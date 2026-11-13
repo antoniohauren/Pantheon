@@ -1,14 +1,22 @@
-//! pantheon-ps4: PS4 PKG container reading (header and container records).
+//! pantheon-ps4: PS4 PKG reading: header, container records, the fake-key
+//! chain and the nested PFS/PFSC application tree ([`Game`]).
 //!
-//! Container records are package metadata, not application files; the PFS image
-//! comes in a later phase. Nothing here authenticates a package.
-//! Behavioural reference: pkg-tools `crates/ps4-pkg` (`lib.rs`).
+//! Nothing here authenticates a package beyond the outer PFS header HMAC.
+//! Behavioural reference: pkg-tools `crates/ps4-pkg`, `docs/extraction.md`.
 
 #![deny(clippy::arithmetic_side_effects, clippy::cast_possible_truncation)]
 
 mod error;
+mod game;
+mod keys;
+mod pfs;
 #[cfg(any(test, feature = "testing"))]
-#[allow(clippy::arithmetic_side_effects, clippy::cast_possible_truncation)] // test-only code
+// Test-only code: a panic here is a broken fixture, never a user-facing failure.
+#[allow(
+    clippy::arithmetic_side_effects,
+    clippy::cast_possible_truncation,
+    clippy::unwrap_used
+)]
 pub mod testing;
 
 use std::collections::HashSet;
@@ -17,6 +25,7 @@ use std::io::{Read, Seek, SeekFrom};
 use pantheon_core::{Limit, Limits, Span, read_exact_capped, u32_be, u64_be};
 
 pub use error::Error;
+pub use game::{FileEntry, FileKind, Game, record_name};
 
 /// `\x7fCNT`.
 pub const MAGIC: [u8; 4] = *b"\x7fCNT";
@@ -244,3 +253,7 @@ impl<R: Read + Seek> Package<R> {
 #[cfg(test)]
 #[allow(clippy::arithmetic_side_effects, clippy::cast_possible_truncation)] // test-only code
 mod tests;
+
+#[cfg(test)]
+#[allow(clippy::arithmetic_side_effects, clippy::cast_possible_truncation)] // test-only code
+mod game_tests;

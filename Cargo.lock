@@ -193,6 +193,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "hades"
+version = "0.0.0"
+dependencies = [
+ "pantheon-args",
+ "pantheon-core",
+ "pantheon-fs",
+ "pantheon-json",
+ "pantheon-package",
+ "pantheon-ps3",
+ "pantheon-ps4",
+]
+
+[[package]]
 name = "hmac"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -324,6 +337,7 @@ name = "pantheon-cli"
 version = "0.0.0"
 dependencies = [
  "athena",
+ "hades",
  "pantheon-args",
 ]
 
@@ -387,6 +401,8 @@ name = "pantheon-ps4"
 version = "0.0.0"
 dependencies = [
  "pantheon-core",
+ "pantheon-crypto",
+ "pantheon-fs",
 ]
 
 [[package]]

@@ -1,0 +1,22 @@
+[package]
+name = "hades"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+pantheon-args = { path = "../args" }
+pantheon-core = { path = "../core" }
+pantheon-fs = { path = "../fs" }
+pantheon-json = { path = "../json" }
+pantheon-package = { path = "../package" }
+
+[dev-dependencies]
+pantheon-core = { path = "../core", features = ["testing"] }
+pantheon-ps3 = { path = "../ps3", features = ["testing"] }
+pantheon-ps4 = { path = "../ps4", features = ["testing"] }
+
+[lints]
+workspace = true

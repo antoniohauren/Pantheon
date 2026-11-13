@@ -31,6 +31,20 @@ impl PrivateKey {
             .map_err(|_| Error::BadKey("RSA CRT values"))?;
         Ok(PrivateKey(key))
     }
+
+    /// The big-endian modulus, for [`public_wrap`] (synthetic fixture builders).
+    pub fn modulus(&self) -> [u8; RSA_BYTES] {
+        let n = self.0.n().to_bytes_be();
+        let mut out = [0u8; RSA_BYTES];
+        // `from_primes` checked the modulus is exactly 2048 bits, so it fills `out`.
+        if let Some(tail) = RSA_BYTES
+            .checked_sub(n.len())
+            .and_then(|s| out.get_mut(s..))
+        {
+            tail.copy_from_slice(&n);
+        }
+        out
+    }
 }
 
 /// PKCS#1 v1.5 decryption of a wrapped 32-byte key with a fake (public) private key.
@@ -118,6 +132,7 @@ mod tests {
 
     #[test]
     fn public_wrap_known_ciphertext_and_roundtrip() {
+        assert_eq!(key().modulus(), arr::<RSA_BYTES>(N));
         let c = public_wrap(&arr(N), E, &type2_block()).unwrap();
         assert_eq!(c, arr::<RSA_BYTES>(C));
         assert_eq!(fake_unwrap(&key(), &c).unwrap(), message());

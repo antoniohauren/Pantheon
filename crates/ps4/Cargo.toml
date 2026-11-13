@@ -12,6 +12,8 @@ testing = []
 
 [dependencies]
 pantheon-core = { path = "../core" }
+pantheon-crypto = { path = "../crypto" }
+pantheon-fs = { path = "../fs" }
 
 [dev-dependencies]
 pantheon-core = { path = "../core", features = ["testing"] }

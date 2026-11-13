@@ -50,6 +50,8 @@ fn flags_values_and_positionals() {
     assert_eq!(a.value("out"), Some(OsStr::new("a")));
     let a = run(&["inspect", "--out=b", "--out", "c", "x"]);
     assert_eq!(a.value("out"), Some(OsStr::new("c")));
+    assert_eq!(a.values("out"), [OsStr::new("b"), OsStr::new("c")]);
+    assert!(a.values("json").is_empty());
     // After `--`, dashes are positionals.
     let a = run(&["inspect", "--", "--json"]);
     assert_eq!(a.positional(0), Some(OsStr::new("--json")));

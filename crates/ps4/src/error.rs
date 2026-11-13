@@ -11,6 +11,13 @@ pub enum Error {
         entry_id: u32,
         key_index: u8,
     },
+    /// The public keysets did not unlock the package (retail or damaged).
+    KeyRecovery(&'static str),
+    /// An application path fails the portable name rules or collides with another.
+    UnsafePath {
+        path: String,
+        reason: pantheon_fs::Reason,
+    },
     Limit(LimitError),
     Io(io::Error),
 }
@@ -27,6 +34,10 @@ impl fmt::Display for Error {
                 f,
                 "decryption material unavailable for record {entry_id:#x} (key index {key_index})"
             ),
+            Error::KeyRecovery(why) => write!(f, "PS4 key recovery failed: {why}"),
+            Error::UnsafePath { path, reason } => {
+                write!(f, "unsafe application path {path:?}: {reason}")
+            }
             Error::Limit(e) => write!(f, "PS4 package: {e}"),
             Error::Io(e) => write!(f, "PS4 package I/O failure: {e}"),
         }
@@ -47,7 +58,10 @@ impl Classify for Error {
         match self {
             Error::Malformed(_) => ErrorKind::Malformed,
             Error::Unsupported(_) => ErrorKind::Unsupported,
-            Error::DecryptionUnavailable { .. } => ErrorKind::KeyUnavailable,
+            Error::DecryptionUnavailable { .. } | Error::KeyRecovery(_) => {
+                ErrorKind::KeyUnavailable
+            }
+            Error::UnsafePath { .. } => ErrorKind::UnsafeOutput,
             Error::Limit(_) => ErrorKind::Limit,
             Error::Io(_) => ErrorKind::Io,
         }
