@@ -34,6 +34,11 @@ const LOADER_WRITE_TIMEOUT: Duration = Duration::from_secs(5);
 const CONTROL_WRITE_TIMEOUT: Duration = Duration::from_secs(60);
 /// After a package is transferred, how long to wait for its `Registered`.
 const REGISTER_GRACE: Duration = Duration::from_secs(2);
+/// How often the host tells the payload it is still there (D37): well inside
+/// the payload's 5-minute idle timeout (D27), so a long download keeps its
+/// session and the next `Job` can still be sent.
+pub(crate) const KEEPALIVE_INTERVAL: Duration =
+    Duration::from_millis(if cfg!(test) { 200 } else { 60_000 });
 /// Event-loop tick: cancellation is checked at least this often.
 const POLL: Duration = Duration::from_millis(10);
 /// UDP "discard" port: `connect` on a UDP socket only picks a route, no packet is sent.
@@ -131,9 +136,10 @@ impl Session {
         reports: &mut [ItemReport],
         ctx: &Ctx<'_>,
     ) -> Result<(), Error> {
-        // The payload may end its session (idle timeout, D27) while the
-        // installer, already registered, keeps downloading: the current
-        // package is still served, but no further `Job` can be sent.
+        // `Keepalive` holds the payload's session open during long downloads
+        // (D37). If the control connection is still lost once the installer
+        // has registered the job, the current package is still served to the
+        // end, but no further `Job` can be sent.
         let mut control_lost: Option<Error> = None;
         for (i, item) in items.iter().enumerate() {
             if let Some(e) = control_lost.take() {
@@ -145,6 +151,7 @@ impl Session {
                 problem: "exceeds the protocol's job index",
             })?;
             self.send_job(index, item)?;
+            let mut last_frame = Instant::now();
             let mut coverage = Coverage::default();
             let mut transferred_at = None;
             loop {
@@ -154,6 +161,15 @@ impl Session {
                     .is_some_and(|t: Instant| registered || t.elapsed() >= REGISTER_GRACE)
                 {
                     break;
+                }
+                if control_lost.is_none() && last_frame.elapsed() >= KEEPALIVE_INTERVAL {
+                    last_frame = Instant::now();
+                    if let Err(e) = write_message(&mut self.control, &Message::Keepalive) {
+                        if !registered {
+                            return Err(e);
+                        }
+                        control_lost = Some(e);
+                    }
                 }
                 match self.events.recv_timeout(POLL) {
                     Ok(Event::Bytes {
@@ -190,6 +206,8 @@ impl Session {
                     {
                         control_lost = Some(e);
                     }
+                    // Already lost (a failed `Keepalive` came first): keep serving.
+                    Ok(Event::Console(Err(Error::Control(_)))) if control_lost.is_some() => {}
                     Ok(Event::Console(frame)) => apply(frame?, reports)?,
                     Err(RecvTimeoutError::Timeout) => {}
                     Err(RecvTimeoutError::Disconnected) => {

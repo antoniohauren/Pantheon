@@ -36,11 +36,10 @@ check and session token (`crates/hermes`), and the ELF checks in
 `xtask payload`. None of these use any console ABI detail: there is none in
 the repository yet.
 
-## Implementation details pending a decision-log entry
+## Implementation details (accepted as D37)
 
-`hermes.md` leaves these open; the implementation picked the conservative
-option. They are **not** recorded in `00-decisions.md` (D34 says protocol
-changes are logged there); the owner should accept or change them.
+`hermes.md` left these open. The owner accepted items 1–4 as proposed and
+chose the fixes in items 5 and 6 (`00-decisions.md` D37).
 
 1. **Config block has a build-ID field.** The payload must send its build ID
    in `Hello`, so it has to carry it: the block is
@@ -52,16 +51,19 @@ changes are logged there); the owner should accept or change them.
    is malformed. Limits apply to that value.
 4. **Task ID is `u64` on the wire** (its native width is S3); `Status` always
    carries a `u32` error code; optional fields use a `0`/`1` flag byte.
-5. **Idle timeout vs. long transfers.** D27's 5-minute idle timeout ends the
-   payload while the installer may still be downloading a large package. The
-   host therefore keeps serving the current, already registered package when
-   the control connection closes, and stops the batch only before the next
-   `Job` (reported as `Partial`). A keepalive frame, or an idle rule that
-   ignores registered-but-unfinished tasks, would need a protocol decision.
-6. **Receive buffer.** Without an allocator, the payload's receive buffer is
-   64 KiB on the stack, so a `Job` with an icon larger than about 63 KiB is
-   refused as too large. S1 decides whether a fixed arena of
-   `MAX_JOB_FRAME` (4 MiB + 64 KiB) is possible.
+5. **Idle timeout vs. long transfers.** D27's 5-minute idle timeout would end
+   the payload while the installer is still downloading a large package. The
+   host now sends `Keepalive` (type 7, empty) every 60 s while a job is in
+   flight, so the payload only times out when its host is gone. If the control
+   connection is lost anyway, the host keeps serving the current, already
+   registered package to the end, and stops the batch only before the next
+   `Job` (reported as `Partial`). The HTTP server also closes a connection
+   that has sent nothing for 60 s when all four are taken, so half-open
+   sockets cannot lock the installer out of resuming.
+6. **Receive buffer.** The payload receives into a fixed arena of
+   `MAX_JOB_FRAME` (4 MiB + 64 KiB), `RECV_ARENA_LEN`, provided by
+   `sys::recv_arena`. S1 decides where that memory comes from; until then the
+   stub returns none and the payload ends at once.
 
 ## S5: is `build-std` needed, and does `rust-src` go into `rust-toolchain.toml`?
 
@@ -141,7 +143,7 @@ image loaded, and how must a payload end?
 4. **Memory.** Observe whether the image is writable (the config block is
    read-only today), whether bytes past the file size (`.bss`) are mapped and
    zero, and the largest image the loader accepts; this decides
-   `RECV_BUF_LEN` and whether a 4 MiB arena is possible.
+   where the 4 MiB + 64 KiB receive arena (`RECV_ARENA_LEN`) can live.
 
 Record: per test, what was sent (build ID), what the console did, what the
 host printed.
@@ -209,7 +211,7 @@ ends cleanly instead of guessing.
 | `sys.rs` `_start` | S1 | Takes no arguments; runs one session; returns to the loader. |
 | `sys.rs` `exit` | S1 | Does nothing; `_start` returns. |
 | `sys.rs` `halt` (panic handler) | S1 | Spins; no abort primitive known. |
-| `lib.rs` `RECV_BUF_LEN` | S1 | 64 KiB on the stack; large-icon `Job`s are refused. |
+| `sys.rs` `recv_arena` | S1 | Returns `None`: no memory source for the 4 MiB + 64 KiB arena is known yet. |
 | `link.ld` | S1 | Flat image at address 0, entry first. |
 | `sys.rs` `Socket::recv`, `Socket::send_all` | S2 | `NotImplemented(S2)`. |
 | `sys.rs` `Ps4::connect`, `Ps4::now_ms` | S2 | `NotImplemented(S2)`. |

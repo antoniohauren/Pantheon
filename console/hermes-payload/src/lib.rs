@@ -19,13 +19,13 @@ use hermes_wire::{
 };
 
 /// D27: the payload exits after this long without host frames or task progress.
+/// The host's `Keepalive` (D37) keeps a long download's session open.
 pub const IDLE_TIMEOUT_MS: u64 = 5 * 60 * 1000;
 /// One receive wait; between waits the loop checks the idle timer and polls status.
 pub const RECV_WAIT_MS: u32 = 1_000;
-/// Receive buffer on the stack, sized for every frame but a `Job` with a large
-/// icon. S1 decides how much memory the payload gets; a `Job` up to
-/// `MAX_JOB_FRAME` needs a fixed arena of that size.
-pub const RECV_BUF_LEN: usize = 64 * 1024;
+/// Receive arena for one frame (D37): fits a `Job` with a full-size icon.
+/// `sys.rs` provides it, because S1 decides where the payload's memory comes from.
+pub const RECV_ARENA_LEN: usize = hermes_wire::MAX_JOB_FRAME as usize;
 /// Every console → host frame is small.
 const SEND_BUF_LEN: usize = 64;
 
@@ -112,14 +112,16 @@ struct Watch {
     last: Option<TaskState>,
 }
 
-/// Runs one session to its end. The connection is closed when this returns.
-pub fn run<C: Console>(console: &mut C, cfg: &Config) -> Exit {
-    match session(console, cfg) {
+/// Runs one session to its end, receiving into `arena` (normally
+/// [`RECV_ARENA_LEN`] bytes; a larger frame is refused). The connection is
+/// closed when this returns.
+pub fn run<C: Console>(console: &mut C, cfg: &Config, arena: &mut [u8]) -> Exit {
+    match session(console, cfg, arena) {
         Ok(exit) | Err(exit) => exit,
     }
 }
 
-fn session<C: Console>(console: &mut C, cfg: &Config) -> Result<Exit, Exit> {
+fn session<C: Console>(console: &mut C, cfg: &Config, buf: &mut [u8]) -> Result<Exit, Exit> {
     let mut conn = console.connect(cfg.host, cfg.port).map_err(Exit::Sys)?;
     send(
         &mut conn,
@@ -129,12 +131,11 @@ fn session<C: Console>(console: &mut C, cfg: &Config) -> Result<Exit, Exit> {
             build_id: cfg.build_id,
         }),
     )?;
-    let mut buf = [0u8; RECV_BUF_LEN];
     let mut last = console.now_ms().map_err(Exit::Sys)?;
     let mut watch: Option<Watch> = None;
     let mut polling = true;
     loop {
-        let Some((kind, len)) = receive(console, &mut conn, &mut buf, &mut last)? else {
+        let Some((kind, len)) = receive(console, &mut conn, buf, &mut last)? else {
             if polling && let Some(w) = watch.as_mut() {
                 match poll(console, &mut conn, w, &mut last)? {
                     Polling::Continue => {}
@@ -175,6 +176,8 @@ fn session<C: Console>(console: &mut C, cfg: &Config) -> Result<Exit, Exit> {
                 Err(RegisterError::Sys(e)) => return Err(Exit::Sys(e)),
             },
             Message::Bye => return Ok(Exit::Bye),
+            // Receiving it already reset the idle timer.
+            Message::Keepalive => {}
             _ => {
                 return Err(Exit::Malformed(hermes_wire::Error::Malformed(
                     "unexpected frame type",

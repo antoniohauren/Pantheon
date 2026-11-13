@@ -134,7 +134,7 @@ a small seeded PRNG in `pantheon-core::testing` (SplitMix64, behind
 ## 7. Toolchain
 
 - Pinned with `rust-toolchain.toml` (P9), including the `x86_64-unknown-none`
-  target and `rust-src` if the payload needs `build-std` (to be decided in the
-  Hermes spike).
+  target. Spike S5 found that `build-std` is not needed, so `rust-src` is not
+  added ([hermes-provenance.md](hermes-provenance.md)).
 - No `cc`, `bindgen` or C compiler anywhere in the default build.
   `rust-lld`, which ships with Rust, links the payload.

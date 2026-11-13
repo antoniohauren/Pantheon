@@ -16,7 +16,10 @@ fn main() {
     let Ok(cfg) = Config::decode_fields(&sys::config_fields()) else {
         return;
     };
-    let exit = hermes_payload::run(&mut sys::Ps4, &cfg);
+    let Some(arena) = sys::recv_arena() else {
+        return;
+    };
+    let exit = hermes_payload::run(&mut sys::Ps4, &cfg, arena);
     sys::exit(exit);
 }
 

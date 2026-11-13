@@ -63,6 +63,13 @@ pub fn halt() -> ! {
     }
 }
 
+/// The receive arena, [`hermes_payload::RECV_ARENA_LEN`] bytes (D37). S1:
+/// where the payload's memory comes from (a loader-provided region, a mapped
+/// page range) is unknown, so there is none yet and the payload ends at once.
+pub fn recv_arena() -> Option<&'static mut [u8]> {
+    None
+}
+
 /// The PS4 console layer. Every method waits for a spike.
 pub struct Ps4;
 

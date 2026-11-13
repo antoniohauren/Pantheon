@@ -6,6 +6,9 @@ with the workspace.
 
 ## ZArchive: upstream reader (Proteus)
 
+The two carried files are licensed **Apache-2.0** by their author (D38); see
+`LICENSE-APACHE` at the repository root.
+
 | File | Provenance |
 | --- | --- |
 | `zarchive-reader.cpp` | Carried verbatim from pkg-tools `tests/reference/zarchive-reader.cpp` at `20e3c3a` (written by the pkg-tools author in commit `f4219cd`). SHA-256 `acfedf8cfb941d6ce1bbb047820707d98d7aff302a1bd16a196f0d080b195747`. |

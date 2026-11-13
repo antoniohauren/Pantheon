@@ -79,6 +79,7 @@ endian. Strings are `u32 length + UTF-8 bytes`.
 | `Failed` | console → host | job index, stage (`register`/`status`), raw console error code (`u32`) |
 | `Status` | console → host | job index, state (`queued`/`downloading`/`installing`/`done`/`error`), optional bytes done, error code |
 | `Bye` | host → console | none. The payload exits cleanly |
+| `Keepalive` | host → console | none. Sent every 60 s while a job is in flight; resets the payload's idle timer (D37) |
 
 - Limits: frame ≤ 64 KiB, except `Job`, which is ≤ 4 MiB + 64 KiB because of the
   icon. Strings use the batch-validation limits above. Unknown frame types,
@@ -204,8 +205,9 @@ installation." *Installed* appears only if S4 works.
 - The payload (`console/hermes-payload`) has its session loop (tested on the
   host against a scripted console); every console call is a stub until spikes
   S1–S4. No console ABI detail is in the repository yet.
-- Spike S5, the details still waiting for a decision-log entry, the S1–S4
-  plans and the list of stubs are in
+- Keepalive, stale-connection eviction and the 4 MiB receive arena (D37) are
+  in, so a long download keeps its session instead of ending the batch.
+- Spike S5, the S1–S4 plans and the list of stubs are in
   [`hermes-provenance.md`](../hermes-provenance.md). Nothing is claimed on a
   real console until it is logged in `verification-log.md`.
 

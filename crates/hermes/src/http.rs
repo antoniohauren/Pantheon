@@ -4,18 +4,20 @@
 //! Only `GET`/`HEAD` of the current job's `/<token-hex>/<n>/package.pkg` and
 //! `…/package.json` are served; every other path is `404`. One request per
 //! connection (`Connection: close`), at most [`MAX_CONNECTIONS`] at once, one
-//! thread each (architecture §5). Connections from any address but the
-//! console's are closed at once.
+//! thread each (architecture §5). When all are taken, the one that has sent
+//! nothing for [`STALE_AFTER`] is closed to make room (D37): a half-open
+//! connection must not lock the installer out of resuming. Connections from
+//! any address but the console's are closed at once.
 
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::net::{IpAddr, Ipv4Addr, Shutdown, TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use pantheon_core::CHUNK;
 
@@ -27,6 +29,8 @@ pub(crate) const MAX_CONNECTIONS: usize = 4;
 pub(crate) const MAX_REQUEST_HEAD: usize = 8 * 1024;
 /// The installer pauses while it validates metadata (pkg-tools: 10 min).
 pub(crate) const IO_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+/// A full server closes a connection that has sent nothing for this long (D37).
+pub(crate) const STALE_AFTER: Duration = Duration::from_secs(if cfg!(test) { 1 } else { 60 });
 /// How often the accept loop checks for a stop request.
 const ACCEPT_POLL: Duration = Duration::from_millis(10);
 const PACKAGE_FILE: &str = "package.pkg";
@@ -143,9 +147,8 @@ struct Shared {
     token_hex: String,
     current: Mutex<Option<Arc<Current>>>,
     stop: AtomicBool,
-    active: AtomicUsize,
-    /// Clones of live connections, so `stop` can shut them down.
-    live: Mutex<Vec<(u64, TcpStream)>>,
+    /// Live connections, oldest first, so `stop` and eviction can shut them down.
+    live: Mutex<Vec<Live>>,
     events: Mutex<Sender<Event>>,
 }
 
@@ -168,7 +171,6 @@ impl Server {
             token_hex,
             current: Mutex::new(None),
             stop: AtomicBool::new(false),
-            active: AtomicUsize::new(0),
             live: Mutex::new(Vec::new()),
             events: Mutex::new(events),
         });
@@ -190,7 +192,7 @@ impl Server {
 
     fn halt(&mut self) {
         self.shared.stop.store(true, Ordering::Relaxed);
-        for (_, stream) in lock(&self.shared.live).iter() {
+        for Live { stream, .. } in lock(&self.shared.live).iter() {
             // Already-closed sockets fail here; there is nothing left to close.
             let _ = stream.shutdown(Shutdown::Both);
         }
@@ -223,7 +225,7 @@ fn accept_loop(listener: &TcpListener, shared: &Arc<Shared>) {
                     drop(stream);
                     continue;
                 }
-                if shared.active.load(Ordering::Relaxed) >= MAX_CONNECTIONS {
+                if !make_room(shared) {
                     let mut stream = stream;
                     let _ = write_status(&mut stream, "503 Service Unavailable");
                     continue;
@@ -239,7 +241,7 @@ fn accept_loop(listener: &TcpListener, shared: &Arc<Shared>) {
         }
     }
     // A worker registered after `halt` shut the others down is closed here.
-    for (_, stream) in lock(&shared.live).iter() {
+    for Live { stream, .. } in lock(&shared.live).iter() {
         let _ = stream.shutdown(Shutdown::Both);
     }
     for w in workers {
@@ -252,18 +254,64 @@ fn spawn_worker(stream: TcpStream, id: u64, shared: &Arc<Shared>) -> Option<Join
     stream.set_nonblocking(false).ok()?;
     stream.set_read_timeout(Some(IO_TIMEOUT)).ok()?;
     stream.set_write_timeout(Some(IO_TIMEOUT)).ok()?;
-    lock(&shared.live).push((id, stream.try_clone().ok()?));
-    shared.active.fetch_add(1, Ordering::Relaxed);
+    lock(&shared.live).push(Live {
+        id,
+        stream: stream.try_clone().ok()?,
+        active: Instant::now(),
+    });
     let shared = Arc::clone(shared);
     Some(std::thread::spawn(move || {
         let mut stream = stream;
-        let outcome = serve(&mut stream, &shared);
+        let outcome = serve(&mut stream, id, &shared);
         if let Err((index, error)) = outcome {
             let _ = lock(&shared.events).send(Event::HttpFailed { index, error });
         }
-        lock(&shared.live).retain(|(i, _)| *i != id);
-        shared.active.fetch_sub(1, Ordering::Relaxed);
+        lock(&shared.live).retain(|l| l.id != id);
     }))
+}
+
+/// One live connection.
+struct Live {
+    id: u64,
+    stream: TcpStream,
+    /// When it was accepted or last sent package bytes.
+    active: Instant,
+}
+
+/// True if a new connection may be served: below the limit, or after closing
+/// the stalest connection once it has sent nothing for [`STALE_AFTER`]. The
+/// closed connection's thread sees a broken pipe and ends without failing
+/// the batch; its bytes sent so far still count.
+fn make_room(shared: &Shared) -> bool {
+    let mut live = lock(&shared.live);
+    if live.len() < MAX_CONNECTIONS {
+        return true;
+    }
+    let Some(pos) = live
+        .iter()
+        .enumerate()
+        .min_by_key(|(_, l)| l.active)
+        .map(|(pos, _)| pos)
+    else {
+        return true;
+    };
+    if live
+        .get(pos)
+        .is_none_or(|l| l.active.elapsed() < STALE_AFTER)
+    {
+        return false;
+    }
+    let stale = live.remove(pos);
+    // Already-closed sockets fail here; there is nothing left to close.
+    let _ = stale.stream.shutdown(Shutdown::Both);
+    true
+}
+
+/// Records that connection `id` made progress.
+fn touch(shared: &Shared, id: u64) {
+    if let Some(l) = lock(&shared.live).iter_mut().find(|l| l.id == id) {
+        l.active = Instant::now();
+    }
 }
 
 /// A parsed request head.
@@ -351,7 +399,7 @@ pub(crate) fn route(path: &str, token_hex: &str) -> Route {
 
 /// `Err((job index, error))` is a host-side failure that stops the batch;
 /// client disconnects are not errors (bytes sent so far still count).
-fn serve(stream: &mut TcpStream, shared: &Shared) -> Result<(), (u32, io::Error)> {
+fn serve(stream: &mut TcpStream, id: u64, shared: &Shared) -> Result<(), (u32, io::Error)> {
     let request = match read_request(stream) {
         Ok(Ok(r)) => r,
         Ok(Err(BadRequest::Method)) => {
@@ -383,7 +431,7 @@ fn serve(stream: &mut TcpStream, shared: &Shared) -> Result<(), (u32, io::Error)
         Route::Manifest(_) => {
             serve_manifest(stream, &c, request.head_only).map_err(|e| (c.index, e))
         }
-        Route::Package(_) => serve_package(stream, &c, &request, shared),
+        Route::Package(_) => serve_package(stream, id, &c, &request, shared),
         Route::NotFound => Ok(()),
     };
     match result {
@@ -417,6 +465,7 @@ fn serve_manifest(stream: &mut TcpStream, c: &Current, head_only: bool) -> io::R
 
 fn serve_package(
     stream: &mut TcpStream,
+    id: u64,
     c: &Current,
     request: &Request,
     shared: &Shared,
@@ -482,6 +531,7 @@ fn serve_package(
         stream
             .write_all(chunk.get(..n).unwrap_or_default())
             .map_err(fail)?;
+        touch(shared, id);
         let next = at.saturating_add(u64::try_from(n).unwrap_or(u64::MAX));
         let _ = lock(&shared.events).send(Event::Bytes {
             index: c.index,

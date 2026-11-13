@@ -198,10 +198,25 @@ impl Control {
         }));
     }
 
-    /// The next frame: `Some(job)`, or `None` for `Bye`.
+    /// The next frame: `Some(job)`, or `None` for `Bye`. `Keepalive`s are skipped.
     fn next(&mut self) -> Option<GotJob> {
-        let (kind, body) = read_frame(&mut self.0, &[Kind::Job, Kind::Bye]).unwrap();
-        match Message::decode(kind, &body).unwrap() {
+        loop {
+            let (kind, body) =
+                read_frame(&mut self.0, &[Kind::Job, Kind::Bye, Kind::Keepalive]).unwrap();
+            if kind != Kind::Keepalive {
+                return Self::decode_job(kind, &body);
+            }
+        }
+    }
+
+    /// Reads one frame and checks that it is a `Keepalive`.
+    fn keepalive(&mut self) {
+        let (kind, _) = read_frame(&mut self.0, &[Kind::Keepalive]).unwrap();
+        assert_eq!(kind, Kind::Keepalive);
+    }
+
+    fn decode_job(kind: Kind, body: &[u8]) -> Option<GotJob> {
+        match Message::decode(kind, body).unwrap() {
             Message::Job(j) => Some(GotJob {
                 index: j.index,
                 manifest_url: j.manifest_url.to_owned(),
@@ -547,6 +562,36 @@ fn payload_leaving_after_registration_still_completes_the_current_package() {
 }
 
 #[test]
+fn keepalives_hold_the_session_through_a_long_download() {
+    let dir = TestDir::new();
+    let pkgs = [package("Long", "gd", 13), package("Next", "gd", 14)];
+    let paths: Vec<_> = pkgs
+        .iter()
+        .enumerate()
+        .map(|(i, p)| dir.write(&format!("k{i}.pkg"), p))
+        .collect();
+    let expected = pkgs.clone();
+    let (target, fake) = console(LOCALHOST, move |loader| {
+        let cfg = loader.receive();
+        let mut c = Control::hello(&cfg);
+        let job = c.job();
+        c.registered(0);
+        // The installer is slow: the host keeps the payload's session alive.
+        for _ in 0..3 {
+            c.keepalive();
+        }
+        download(&job, &expected[0]);
+        let job = c.job();
+        c.registered(1);
+        download(&job, &expected[1]);
+        c.bye();
+    });
+    let (result, _) = run_send(&target, &payload_file(&dir), &paths, &Cancel::new());
+    fake.join().unwrap();
+    assert_eq!(result.unwrap().transferred(), 2);
+}
+
+#[test]
 fn wrong_token_is_closed_and_the_real_payload_still_connects() {
     let dir = TestDir::new();
     let pkg = package("Token", "gd", 8);
@@ -645,7 +690,7 @@ fn http_server_closes_foreign_peers_and_bounds_connections() {
     assert!(out.is_empty(), "a foreign peer gets no response");
     server.stop();
 
-    // At most MAX_CONNECTIONS at once: the next one gets 503.
+    // At most MAX_CONNECTIONS at once: while all are fresh, the next one gets 503.
     let (tx, _rx) = mpsc::channel();
     let listener = TcpListener::bind((LOCALHOST, 0)).unwrap();
     let addr = listener.local_addr().unwrap();
@@ -662,6 +707,27 @@ fn http_server_closes_foreign_peers_and_bounds_connections() {
         out.starts_with(b"HTTP/1.1 503"),
         "{}",
         String::from_utf8_lossy(&out)
+    );
+    // Once the oldest has sent nothing for STALE_AFTER, a new connection
+    // closes it instead of getting 503: a half-open socket can't lock out a resume.
+    std::thread::sleep(http::STALE_AFTER + std::time::Duration::from_millis(100));
+    let mut fresh = TcpStream::connect(addr).unwrap();
+    fresh
+        .write_all(b"GET /ab/0/package.json HTTP/1.1\r\n\r\n")
+        .unwrap();
+    let mut out = Vec::new();
+    let _ = fresh.read_to_end(&mut out);
+    assert!(
+        out.starts_with(b"HTTP/1.1 404"),
+        "served, not refused: {}",
+        String::from_utf8_lossy(&out)
+    );
+    let mut idle = idle.into_iter();
+    let mut oldest = idle.next().unwrap();
+    let mut b = [0u8; 1];
+    assert!(
+        matches!(oldest.read(&mut b), Ok(0) | Err(_)),
+        "the stalest is closed"
     );
     // Stopping closes idle connections instead of waiting out their timeouts.
     server.stop();

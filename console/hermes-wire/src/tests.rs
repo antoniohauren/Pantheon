@@ -80,6 +80,7 @@ fn samples() -> Vec<Message<'static>> {
             error_code: 0xDEAD,
         }),
         Message::Bye,
+        Message::Keepalive,
     ]
 }
 
@@ -95,6 +96,10 @@ fn every_message_round_trips() {
 #[test]
 fn bye_is_a_bare_type_byte() {
     assert_eq!(encode(&Message::Bye), [1, 0, 0, 0, Kind::Bye as u8]);
+    assert_eq!(
+        encode(&Message::Keepalive),
+        [1, 0, 0, 0, Kind::Keepalive as u8]
+    );
 }
 
 #[test]

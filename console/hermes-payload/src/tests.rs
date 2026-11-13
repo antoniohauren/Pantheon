@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-use hermes_wire::{BUILD_ID_LEN, DIGEST_LEN, MAX_FRAME, TOKEN_LEN};
+use hermes_wire::{BUILD_ID_LEN, DIGEST_LEN, MAX_FRAME, MAX_ICON, TOKEN_LEN};
 
 use super::*;
 
@@ -142,10 +142,16 @@ fn hello() -> Message<'static> {
     })
 }
 
+/// Runs a session with the production-size arena.
+fn go(m: &mut Mock) -> Exit {
+    let mut arena = vec![0u8; RECV_ARENA_LEN];
+    run(m, &CFG, &mut arena)
+}
+
 #[test]
 fn hello_jobs_then_bye() {
     let mut m = Mock::new(vec![job(0), Step::Wait, job(1), frame(&Message::Bye)]);
-    assert_eq!(run(&mut m, &CFG), Exit::Bye);
+    assert_eq!(go(&mut m), Exit::Bye);
     let reg = |index| {
         Message::Registered(Registered {
             index,
@@ -164,7 +170,7 @@ fn frames_split_across_reads_are_reassembled() {
     steps.insert(2, Step::Wait);
     steps.push(frame(&Message::Bye));
     let mut m = Mock::new(steps);
-    assert_eq!(run(&mut m, &CFG), Exit::Bye);
+    assert_eq!(go(&mut m), Exit::Bye);
     assert_eq!(m.sent().len(), 2);
 }
 
@@ -176,21 +182,21 @@ fn idle_timeout_ends_the_session() {
     // The job resets the timer; then a full idle period passes.
     steps.extend((0..waits).map(|_| Step::Wait));
     let mut m = Mock::new(steps);
-    assert_eq!(run(&mut m, &CFG), Exit::Idle);
+    assert_eq!(go(&mut m), Exit::Idle);
     assert_eq!(m.sent().len(), 2, "Hello and Registered, then idle");
 }
 
 #[test]
 fn host_closing_ends_the_session() {
     let mut m = Mock::new(vec![job(0)]);
-    assert_eq!(run(&mut m, &CFG), Exit::Closed);
+    assert_eq!(go(&mut m), Exit::Closed);
 }
 
 #[test]
 fn installer_refusal_is_reported_raw() {
     let mut m = Mock::new(vec![job(3), frame(&Message::Bye)]);
     m.register = Err(RegisterError::Console(0x8099_0001));
-    assert_eq!(run(&mut m, &CFG), Exit::Bye);
+    assert_eq!(go(&mut m), Exit::Bye);
     assert_eq!(
         m.sent()[1],
         Message::Failed(Failed {
@@ -206,7 +212,7 @@ fn stubs_end_the_session_without_inventing_codes() {
     let mut m = Mock::new(vec![job(0)]);
     m.register = Err(RegisterError::Sys(SysError::NotImplemented(Spike::S3)));
     assert_eq!(
-        run(&mut m, &CFG),
+        go(&mut m),
         Exit::Sys(SysError::NotImplemented(Spike::S3))
     );
     assert_eq!(m.sent(), [hello()], "no Failed frame with a made-up code");
@@ -214,7 +220,7 @@ fn stubs_end_the_session_without_inventing_codes() {
     let mut m = Mock::new(vec![]);
     m.connect = Err(SysError::NotImplemented(Spike::S2));
     assert_eq!(
-        run(&mut m, &CFG),
+        go(&mut m),
         Exit::Sys(SysError::NotImplemented(Spike::S2))
     );
 }
@@ -241,7 +247,7 @@ fn status_changes_are_reported_until_done() {
         polled(TaskState::Downloading),
         polled(TaskState::Done),
     ]);
-    assert_eq!(run(&mut m, &CFG), Exit::Bye);
+    assert_eq!(go(&mut m), Exit::Bye);
     let states: Vec<TaskState> = m
         .sent()
         .into_iter()
@@ -257,15 +263,51 @@ fn status_changes_are_reported_until_done() {
 #[test]
 fn unexpected_and_oversized_frames_are_malformed() {
     let mut m = Mock::new(vec![frame(&hello())]);
-    assert!(matches!(run(&mut m, &CFG), Exit::Malformed(_)));
+    assert!(matches!(go(&mut m), Exit::Malformed(_)));
 
-    // A Job larger than the receive buffer (S1 decides the arena size).
-    let len = (RECV_BUF_LEN as u32 + 2).min(MAX_FRAME * 2);
+    // A Job larger than the arena it is given.
+    let small = MAX_FRAME as usize;
+    let len = MAX_FRAME + 2;
     let mut head = len.to_le_bytes().to_vec();
     head.push(Kind::Job as u8);
     let mut m = Mock::new(vec![Step::Bytes(head)]);
     assert!(matches!(
-        run(&mut m, &CFG),
+        run(&mut m, &CFG, &mut vec![0u8; small]),
         Exit::Malformed(hermes_wire::Error::FrameTooLarge { .. })
     ));
+}
+
+#[test]
+fn keepalive_holds_the_session_past_the_idle_timeout() {
+    let waits = (IDLE_TIMEOUT_MS / u64::from(RECV_WAIT_MS)) as usize;
+    let mut steps = vec![job(0)];
+    // Three idle periods, each broken by a host Keepalive just before it ends.
+    for _ in 0..3 {
+        steps.extend((0..waits - 1).map(|_| Step::Wait));
+        steps.push(frame(&Message::Keepalive));
+    }
+    steps.push(frame(&Message::Bye));
+    let mut m = Mock::new(steps);
+    assert_eq!(go(&mut m), Exit::Bye);
+    assert_eq!(m.sent().len(), 2, "Keepalive needs no reply");
+}
+
+#[test]
+fn a_job_with_a_full_size_icon_fits_the_arena() {
+    let icon = vec![0x89; MAX_ICON as usize];
+    let mut m = Mock::new(vec![
+        frame(&Message::Job(Job {
+            index: 0,
+            manifest_url: "http://10.0.0.2:1/t/0/package.json",
+            name: "Title",
+            content_id: "UP0000-TEST00000_00-0000000000000000",
+            package_type: "PS4GD",
+            size: 1,
+            digest: [0; DIGEST_LEN],
+            icon: Some(&icon),
+        })),
+        frame(&Message::Bye),
+    ]);
+    assert_eq!(go(&mut m), Exit::Bye);
+    assert_eq!(m.sent().len(), 2, "Hello and Registered");
 }

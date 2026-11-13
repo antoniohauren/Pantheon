@@ -71,6 +71,7 @@ pub enum Kind {
     Failed = 4,
     Status = 5,
     Bye = 6,
+    Keepalive = 7,
 }
 
 impl Kind {
@@ -82,6 +83,7 @@ impl Kind {
             4 => Kind::Failed,
             5 => Kind::Status,
             6 => Kind::Bye,
+            7 => Kind::Keepalive,
             _ => return None,
         })
     }
@@ -102,6 +104,7 @@ impl Kind {
             Kind::Failed => "Failed",
             Kind::Status => "Status",
             Kind::Bye => "Bye",
+            Kind::Keepalive => "Keepalive",
         }
     }
 }
@@ -275,6 +278,9 @@ pub enum Message<'a> {
     Status(Status),
     /// Host → console: the payload exits cleanly.
     Bye,
+    /// Host → console: the host is still there; resets the payload's idle
+    /// timer while the installer downloads (D37).
+    Keepalive,
 }
 
 const U8: usize = 1;
@@ -295,6 +301,7 @@ impl<'a> Message<'a> {
             Message::Failed(_) => Kind::Failed,
             Message::Status(_) => Kind::Status,
             Message::Bye => Kind::Bye,
+            Message::Keepalive => Kind::Keepalive,
         }
     }
 
@@ -359,6 +366,7 @@ impl<'a> Message<'a> {
                 error_code: r.u32()?,
             }),
             Kind::Bye => Message::Bye,
+            Kind::Keepalive => Message::Keepalive,
         };
         r.finish()?;
         Ok(message)
@@ -373,7 +381,7 @@ impl<'a> Message<'a> {
             Message::Failed(_) => FAILED_BODY,
             Message::Status(s) if s.bytes_done.is_some() => STATUS_BODY + U64,
             Message::Status(_) => STATUS_BODY,
-            Message::Bye => 0,
+            Message::Bye | Message::Keepalive => 0,
         })
     }
 
@@ -437,7 +445,7 @@ impl<'a> Message<'a> {
                 }
                 w.u32(s.error_code)?;
             }
-            Message::Bye => {}
+            Message::Bye | Message::Keepalive => {}
         }
         Ok(w.written())
     }
