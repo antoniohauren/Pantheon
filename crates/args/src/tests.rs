@@ -122,3 +122,30 @@ fn fail_reports_and_maps_exit_code() {
     assert_eq!(fail(&mut io, "athena", &UsageError("bad".into())), 2);
     assert_eq!(err, b"athena: bad\n");
 }
+
+#[test]
+fn repeatable_last_positional_takes_one_or_more() {
+    static SEND: Spec = Spec {
+        verb: "send",
+        summary: "Send",
+        positionals: &[Positional {
+            name: "PKG...",
+            help: "packages",
+        }],
+        options: &[],
+        one_of: &[],
+    };
+    static SENDER: Command = Command {
+        name: "hermes",
+        summary: "send",
+        verbs: &[&SEND],
+    };
+    let parsed = |args: &[&str]| match parse(&SENDER, &argv(args)) {
+        Ok(Invocation::Run(_, args)) => Some(args),
+        _ => None,
+    };
+    assert!(parsed(&["send"]).is_none());
+    let args = parsed(&["send", "a", "b", "c"]).expect("three packages");
+    assert_eq!(args.positionals_from(0), argv(&["a", "b", "c"]));
+    assert!(args.positionals_from(5).is_empty());
+}

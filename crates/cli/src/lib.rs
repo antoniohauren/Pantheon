@@ -26,6 +26,11 @@ const GODS: &[God] = &[
         summary: hades::cli::COMMAND.summary,
         run: hades::cli::run,
     },
+    God {
+        name: "hermes",
+        summary: hermes::cli::COMMAND.summary,
+        run: hermes::cli::run,
+    },
 ];
 
 const NAME: &str = "pantheon";
@@ -130,5 +135,7 @@ mod tests {
         let (code, _, err) = run(&["zeus"]);
         assert!(code == 2 && err.contains("unknown god"));
         assert_eq!(run(&["athena", "inspect"]).0, 2);
+        let (code, out, _) = run(&["help", "hermes", "send"]);
+        assert!(code == 0 && out.contains("hermes send PKG..."), "{out}");
     }
 }

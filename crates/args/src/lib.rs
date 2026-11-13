@@ -39,7 +39,11 @@ impl Opt {
 /// `--json`, shared by every verb with machine-readable output.
 pub const JSON: Opt = Opt::flag("json", "Machine-readable output on stdout");
 
-/// One required positional argument.
+/// Suffix of a last positional that takes one or more values (`PKG...`).
+pub const REPEATABLE: &str = "...";
+
+/// One required positional argument. A last positional whose name ends in
+/// [`REPEATABLE`] takes one or more values; read them with `Args::positionals_from`.
 #[derive(Clone, Copy, Debug)]
 pub struct Positional {
     pub name: &'static str,
@@ -75,6 +79,11 @@ pub struct Args {
 impl Args {
     pub fn positional(&self, index: usize) -> Option<&OsStr> {
         self.positionals.get(index).map(OsString::as_os_str)
+    }
+
+    /// Every positional from `index` on (a repeatable last positional).
+    pub fn positionals_from(&self, index: usize) -> &[OsString] {
+        self.positionals.get(index..).unwrap_or_default()
     }
 
     pub fn flag(&self, long: &str) -> bool {
@@ -220,7 +229,12 @@ fn parse_verb(cmd: &Command, spec: &'static Spec, argv: &[OsString]) -> Result<A
         args.options.push((opt.long, value));
     }
     let wanted = spec.positionals.len();
-    if args.positionals.len() != wanted {
+    let repeats = spec
+        .positionals
+        .last()
+        .is_some_and(|p| p.name.ends_with(REPEATABLE));
+    let got = args.positionals.len();
+    if got != wanted && !(repeats && got > wanted) {
         let names: Vec<_> = spec.positionals.iter().map(|p| p.name).collect();
         return Err(usage(format!(
             "expected {wanted} argument(s) ({}), got {}",

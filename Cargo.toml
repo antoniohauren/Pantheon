@@ -13,7 +13,9 @@ members = [
     "crates/package",
     "crates/athena",
     "crates/hades",
+    "crates/hermes",
     "crates/cli",
+    "console/hermes-wire",
     "xtask",
 ]
 # Default members grow to L0–L3 + pantheon-cli (architecture §8); GUI and console crates stay opt-in.
@@ -30,6 +32,7 @@ default-members = [
     "crates/package",
     "crates/athena",
     "crates/hades",
+    "crates/hermes",
     "crates/cli",
     "crates/args",
     "crates/psf",

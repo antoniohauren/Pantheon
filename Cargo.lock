@@ -206,6 +206,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "hermes"
+version = "0.0.0"
+dependencies = [
+ "hermes-wire",
+ "pantheon-args",
+ "pantheon-core",
+ "pantheon-fs",
+ "pantheon-json",
+ "pantheon-package",
+ "pantheon-ps4",
+ "pantheon-psf",
+]
+
+[[package]]
+name = "hermes-wire"
+version = "0.0.0"
+dependencies = [
+ "pantheon-core",
+]
+
+[[package]]
 name = "hmac"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -338,6 +359,7 @@ version = "0.0.0"
 dependencies = [
  "athena",
  "hades",
+ "hermes",
  "pantheon-args",
 ]
 
@@ -703,6 +725,8 @@ dependencies = [
 name = "xtask"
 version = "0.0.0"
 dependencies = [
+ "hermes-wire",
+ "pantheon-crypto",
  "serde_json",
 ]
 

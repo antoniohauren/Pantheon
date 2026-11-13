@@ -19,9 +19,14 @@ path = "src/bin/athena.rs"
 name = "hades"
 path = "src/bin/hades.rs"
 
+[[bin]]
+name = "hermes"
+path = "src/bin/hermes.rs"
+
 [dependencies]
 athena = { path = "../athena" }
 hades = { path = "../hades" }
+hermes = { path = "../hermes" }
 pantheon-args = { path = "../args" }
 
 [lints]

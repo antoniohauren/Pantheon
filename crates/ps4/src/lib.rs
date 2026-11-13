@@ -34,6 +34,9 @@ pub const HEADER_LEN: u64 = 0x1100;
 /// Header bytes holding every field read here.
 const HEADER_FIELDS_LEN: usize = 0x5a0;
 const RECORD_LEN: u64 = 32;
+/// Header offset of the 32-byte package digest (inside `HEADER_LEN`).
+pub const DIGEST_OFFSET: u64 = 0xFE0;
+pub const DIGEST_LEN: usize = 32;
 const CONTENT_ID_LEN: usize = 48;
 const ENCRYPTED_FLAG: u32 = 0x8000_0000;
 const KEY_INDEX_SHIFT: u32 = 12;
@@ -228,6 +231,15 @@ impl<R: Read + Seek> Package<R> {
     pub fn read_pic1(&mut self) -> Result<Option<Vec<u8>>, Error> {
         let limit = Limit::new("pic1.png size", self.limits.max_artwork);
         self.read_plaintext(id::PIC1, limit)
+    }
+
+    /// The 32-byte package digest at header offset `0xFE0` (Hermes's manifest).
+    /// `open` checked the input covers the whole header, so it is always readable.
+    pub fn read_digest(&mut self) -> Result<[u8; DIGEST_LEN], Error> {
+        self.reader.seek(SeekFrom::Start(DIGEST_OFFSET))?;
+        let mut digest = [0; DIGEST_LEN];
+        self.reader.read_exact(&mut digest)?;
+        Ok(digest)
     }
 
     /// The payload of record `id` if it is stored in plaintext.

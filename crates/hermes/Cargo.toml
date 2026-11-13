@@ -1,0 +1,29 @@
+[package]
+name = "hermes"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+# D21: embeds `target/hermes-payload/hermes-payload.bin` (built by
+# `cargo xtask payload`). Off by default, so `cargo build`/`test` need no
+# console target; without it `--payload FILE` is required.
+embed-payload = []
+
+[dependencies]
+hermes-wire = { path = "../../console/hermes-wire" }
+pantheon-args = { path = "../args" }
+pantheon-core = { path = "../core" }
+pantheon-fs = { path = "../fs" }
+pantheon-json = { path = "../json" }
+pantheon-package = { path = "../package" }
+pantheon-psf = { path = "../psf" }
+
+[dev-dependencies]
+pantheon-core = { path = "../core", features = ["testing"] }
+pantheon-ps4 = { path = "../ps4", features = ["testing"] }
+
+[lints]
+workspace = true
