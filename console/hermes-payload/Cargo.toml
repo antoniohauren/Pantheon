@@ -1,0 +1,54 @@
+# The Hermes console payload (docs/gods/hermes.md "Payload", D11, D33).
+# Standalone package, not a member of the main workspace: it targets
+# `x86_64-unknown-none` and needs `panic = "abort"`, which a workspace
+# profile would force on every host crate. Build and check it with
+# `cargo xtask payload`; test its session loop on the host with
+# `cargo test --manifest-path console/hermes-payload/Cargo.toml --lib`.
+[package]
+name = "hermes-payload"
+version = "0.0.0"
+publish = false
+edition = "2024"
+rust-version = "1.99.1"
+license = "MIT OR Apache-2.0"
+build = "build.rs"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hermes-payload"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+hermes-wire = { path = "../hermes-wire" }
+
+# Architecture §9: this crate opts out of the workspace `forbid` and denies
+# `unsafe` itself; only `src/sys.rs` allows it, item by item.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+cast_possible_truncation = "deny"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = true
+codegen-units = 1
+debug = false
+strip = true
+incremental = false
+
+# Keeps this package out of the main workspace.
+[workspace]

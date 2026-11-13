@@ -5,6 +5,8 @@ use std::process::ExitCode;
 mod deps;
 mod diff;
 mod diff_hades;
+mod elf;
+mod payload;
 
 /// Exit code for bad usage (D31).
 const EXIT_USAGE: u8 = 2;
@@ -18,8 +20,8 @@ const TASKS: &[(&str, &str, Option<&str>)] = &[
     ("diff", "differential run against pkg-tools", None),
     (
         "payload",
-        "build the Hermes console payload",
-        Some("Phase 4"),
+        "build and check the Hermes console payload",
+        None,
     ),
 ];
 
@@ -39,6 +41,7 @@ fn run(args: &[String]) -> (u8, String) {
     match TASKS.iter().find(|(name, _, _)| name == task) {
         Some(("deps", _, _)) => deps::run(&args[1..]),
         Some(("diff", _, _)) => diff::run(&args[1..]),
+        Some(("payload", _, _)) => payload::run(&args[1..]),
         Some((name, _, Some(phase))) => (
             EXIT_UNSUPPORTED,
             format!("xtask {name}: not implemented yet ({phase})"),

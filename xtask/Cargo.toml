@@ -10,5 +10,8 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+# `xtask payload`: the config block layout and the build-ID hash (workspace crates).
+hermes-wire = { path = "../console/hermes-wire" }
+pantheon-crypto = { path = "../crates/crypto" }
 # P14: parses and normalises JSON for `xtask diff` only; never ships.
 serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }

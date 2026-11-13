@@ -194,6 +194,21 @@ installation." *Installed* appears only if S4 works.
   `docs/verification-log.md` (date, firmware, loader version, payload build ID,
   outcome per package).
 
+## Implementation status (Phase 4, host side)
+
+- Done, with synthetic evidence only: `hermes-wire` v1 (round trips, limits,
+  truncation sweeps, `Corruptor`, a `fuzz_hermes_wire` target), the host session,
+  HTTP range server, peer check and token (`crates/hermes`, tested against a fake
+  console over loopback), `hermes send` / `hermes probe` and `pantheon hermes`,
+  and `cargo xtask payload` (ELF to flat binary, checks, build ID).
+- The payload (`console/hermes-payload`) has its session loop (tested on the
+  host against a scripted console); every console call is a stub until spikes
+  S1–S4. No console ABI detail is in the repository yet.
+- Spike S5, the details still waiting for a decision-log entry, the S1–S4
+  plans and the list of stubs are in
+  [`hermes-provenance.md`](../hermes-provenance.md). Nothing is claimed on a
+  real console until it is logged in `verification-log.md`.
+
 ## References
 
 pkg-tools `crates/ps4-send/src/lib.rs` (host behaviour, at `20e3c3a`) and README
