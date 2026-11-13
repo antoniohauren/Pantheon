@@ -12,6 +12,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "=0.4.13"
+hermes-wire = { path = "../console/hermes-wire" }
 pantheon-core = { path = "../crates/core" }
 pantheon-xml = { path = "../crates/xml" }
 pantheon-psf = { path = "../crates/psf" }
@@ -43,6 +44,13 @@ bench = false
 [[bin]]
 name = "fuzz_ps4_pkg"
 path = "fuzz_targets/fuzz_ps4_pkg.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_hermes_wire"
+path = "fuzz_targets/fuzz_hermes_wire.rs"
 test = false
 doc = false
 bench = false

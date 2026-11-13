@@ -214,6 +214,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hermes-wire"
+version = "0.0.0"
+
+[[package]]
 name = "hmac"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -381,6 +385,7 @@ dependencies = [
 name = "pantheon-fuzz"
 version = "0.0.0"
 dependencies = [
+ "hermes-wire",
  "libfuzzer-sys",
  "pantheon-core",
  "pantheon-ps3",
@@ -404,6 +409,8 @@ name = "pantheon-ps4"
 version = "0.0.0"
 dependencies = [
  "pantheon-core",
+ "pantheon-crypto",
+ "pantheon-fs",
 ]
 
 [[package]]
