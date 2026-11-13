@@ -31,6 +31,8 @@ pkg-tools at `20e3c3a` is the oracle during the rewrite:
   (inspect, list, trophies) or output manifests (path, size, SHA-256 for
   extract, convert, liberate, rebuild). `xtask diff hades` compares the two
   extracted trees byte for byte, which is stricter than comparing hashes.
+  `xtask diff proteus` reads both tools' archives back and compares paths,
+  kinds, sizes and SHA-256 per file (reader-equivalent, D16).
 - Private inputs stay under an ignored `pkgs/` directory. Reports print
   pass/fail and counts, **never** hashes or names of private content.
 - A god reaches parity when its differential suite passes on every local fixture

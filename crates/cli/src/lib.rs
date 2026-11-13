@@ -31,6 +31,11 @@ const GODS: &[God] = &[
         summary: hermes::cli::COMMAND.summary,
         run: hermes::cli::run,
     },
+    God {
+        name: "proteus",
+        summary: proteus::cli::COMMAND.summary,
+        run: proteus::cli::run,
+    },
 ];
 
 const NAME: &str = "pantheon";
@@ -127,7 +132,7 @@ mod tests {
         let (code, out, _) = run(&["--version"]);
         assert_eq!((code, out.starts_with("pantheon ")), (0, true));
         let (code, out, _) = run(&["help"]);
-        assert!(code == 0 && out.contains("athena"));
+        assert!(code == 0 && out.contains("athena") && out.contains("proteus"));
         let (code, out, _) = run(&["help", "athena", "inspect"]);
         assert!(code == 0 && out.contains("athena inspect INPUT"), "{out}");
         let (code, out, _) = run(&["athena", "--help"]);

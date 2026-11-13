@@ -5,6 +5,7 @@ use std::process::ExitCode;
 mod deps;
 mod diff;
 mod diff_hades;
+mod diff_proteus;
 mod elf;
 mod payload;
 

@@ -1,5 +1,6 @@
-//! `cargo xtask diff athena|hades INPUT…`: differential runs against pkg-tools
-//! (docs/05-testing.md §3). `hades` lives in [`crate::diff_hades`]. The oracle binary comes from `PANTHEON_PKG_TOOLS`.
+//! `cargo xtask diff athena|hades|proteus INPUT…`: differential runs against pkg-tools
+//! (docs/05-testing.md §3). `hades` lives in [`crate::diff_hades`], `proteus` in
+//! [`crate::diff_proteus`]. The oracle binary comes from `PANTHEON_PKG_TOOLS`.
 //!
 //! Field mapping (docs/gods/athena.md): identity. Every field pkg-tools emits
 //! must appear in Pantheon's output with an equal value; Pantheon may only add
@@ -128,14 +129,14 @@ pub fn run(args: &[String]) -> (u8, String) {
         (
             EXIT_USAGE,
             format!(
-                "usage: {ORACLE_ENV}=/path/to/pkg-tools cargo xtask diff athena|hades INPUT..."
+                "usage: {ORACLE_ENV}=/path/to/pkg-tools cargo xtask diff athena|hades|proteus INPUT..."
             ),
         )
     };
     let Some((god, inputs)) = args.split_first() else {
         return usage();
     };
-    if !["athena", "hades"].contains(&god.as_str()) || inputs.is_empty() {
+    if !["athena", "hades", "proteus"].contains(&god.as_str()) || inputs.is_empty() {
         return usage();
     }
     let Some(oracle) = std::env::var_os(ORACLE_ENV).map(PathBuf::from) else {
@@ -156,11 +157,17 @@ pub fn run(args: &[String]) -> (u8, String) {
     for (n, input) in inputs.iter().enumerate() {
         let number = n.saturating_add(1);
         let input = Path::new(input);
+        let target =
+            std::env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), PathBuf::from);
         let lines = if god == "hades" {
-            let target = std::env::var_os("CARGO_TARGET_DIR")
-                .map_or_else(|| root.join("target"), PathBuf::from);
             let work = target.join("xtask-diff-hades").join(number.to_string());
             match crate::diff_hades::run_input(&oracle, &ours, input, &work) {
+                Err(e) => return (EXIT_IO, format!("xtask diff: input {number}: {e}")),
+                Ok(lines) => lines,
+            }
+        } else if god == "proteus" {
+            let work = target.join("xtask-diff-proteus").join(number.to_string());
+            match crate::diff_proteus::run_input(&oracle, &ours, &input.to_string_lossy(), &work) {
                 Err(e) => return (EXIT_IO, format!("xtask diff: input {number}: {e}")),
                 Ok(lines) => lines,
             }

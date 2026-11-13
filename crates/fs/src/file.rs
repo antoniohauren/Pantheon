@@ -42,21 +42,12 @@ impl OutputFile {
     /// Checks that `final_path` does not exist and creates a scratch sibling
     /// `.<name>.pantheon-<random>.partial`. The parent chain must be symlink-free.
     pub fn create_new(final_path: &Path, access: Access) -> Result<OutputFile, Error> {
-        let name = match final_path.file_name().map(OsStr::to_str) {
-            None => return Err(Error::unsafe_at(final_path, Reason::Empty)),
-            Some(None) => return Err(Error::unsafe_at(final_path, Reason::NotUtf8)),
-            Some(Some(name)) => name,
-        };
-        validate_component(name).map_err(|reason| Error::unsafe_at(final_path, reason))?;
+        let (parent_path, name) = split_final(final_path)?;
         if access == Access::OwnerOnly && !OWNER_ONLY_SUPPORTED {
             return Err(Error::Unsupported(
                 "owner-only file access on this platform",
             ));
         }
-        let parent_path = match final_path.parent() {
-            Some(parent) if !parent.as_os_str().is_empty() => parent,
-            _ => Path::new("."),
-        };
         let parent = Dir::open_path(parent_path).map_err(|e| Error::at(parent_path, e))?;
         refuse_existing(&parent, parent_path, name)?;
 
@@ -75,6 +66,11 @@ impl OutputFile {
         // On error from here, `drop` removes the scratch.
         out.probe(access)?;
         Ok(out)
+    }
+
+    /// The final path this file will be published under.
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Copies `src` in chunks, checking cancellation at every chunk boundary.
@@ -183,6 +179,78 @@ impl Drop for OutputFile {
         if let Some(scratch) = &self.scratch {
             let _ = self.parent.unlink(scratch);
         }
+    }
+}
+
+/// The parent directory (`.` when bare) and the validated UTF-8 file name.
+fn split_final(final_path: &Path) -> Result<(&Path, &str), Error> {
+    let name = match final_path.file_name().map(OsStr::to_str) {
+        None => return Err(Error::unsafe_at(final_path, Reason::Empty)),
+        Some(None) => return Err(Error::unsafe_at(final_path, Reason::NotUtf8)),
+        Some(Some(name)) => name,
+    };
+    validate_component(name).map_err(|reason| Error::unsafe_at(final_path, reason))?;
+    let parent = match final_path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    };
+    Ok((parent, name))
+}
+
+/// A private working file beside an output, for data that must spill to disk
+/// before publication (e.g. ZArchive chunk indexes). It is never published;
+/// dropping it removes it (best effort).
+pub struct ScratchFile {
+    parent: Dir,
+    name: String,
+    path: PathBuf,
+    file: File,
+}
+
+impl ScratchFile {
+    /// Creates `.<name>.pantheon-<random>.partial` next to `near`, which need not exist.
+    pub fn create_beside(near: &Path) -> Result<ScratchFile, Error> {
+        let (parent_path, name) = split_final(near)?;
+        let parent = Dir::open_path(parent_path).map_err(|e| Error::at(parent_path, e))?;
+        let scratch = scratch_name(name)?;
+        let path = parent_path.join(&scratch);
+        let file = parent
+            .create_file(&scratch, Access::Default)
+            .map_err(|e| Error::at(&path, e))?;
+        Ok(ScratchFile {
+            parent,
+            name: scratch,
+            path,
+            file,
+        })
+    }
+
+    /// Where the scratch file lives (for messages).
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// A new read handle positioned at the start; flush buffered writes first.
+    pub fn reopen(&self) -> Result<File, Error> {
+        self.parent
+            .open_file(&self.name)
+            .map_err(|e| Error::at(&self.path, e))
+    }
+}
+
+impl Write for ScratchFile {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.file.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
+}
+
+impl Drop for ScratchFile {
+    fn drop(&mut self) {
+        let _ = self.parent.unlink(&self.name);
     }
 }
 
@@ -387,5 +455,19 @@ mod tests {
             .err()
             .unwrap();
         assert_eq!(err.kind(), ErrorKind::Unsupported);
+    }
+
+    #[test]
+    fn scratch_file_reads_back_and_is_removed_on_drop() {
+        let dir = TestDir::new();
+        let mut scratch = ScratchFile::create_beside(&dir.path().join("out.zar")).unwrap();
+        scratch.write_all(b"records").unwrap();
+        scratch.flush().unwrap();
+        let mut back = Vec::new();
+        scratch.reopen().unwrap().read_to_end(&mut back).unwrap();
+        assert_eq!(back, b"records");
+        assert!(scratch.path().exists());
+        drop(scratch);
+        assert!(names(dir.path()).is_empty());
     }
 }
