@@ -51,7 +51,7 @@ pub enum Payload {
 #[cfg(feature = "embed-payload")]
 const EMBEDDED: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../target/hermes-payload/hermes-payload.bin"
+    "/../../target/hermes-payload/hermes-payload.elf"
 ));
 
 impl Payload {

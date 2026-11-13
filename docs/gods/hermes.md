@@ -63,8 +63,9 @@ host (hermes crate, std)                         console (hermes-payload, no_std
 - `hermes` (L2): batch validation, session, control connection, HTTP range server,
   `ops`/`model`/`cli`.
 - `hermes-payload`: the console program. All `unsafe` is in `sys.rs` (architecture §9).
-- `xtask payload`: builds the payload, converts the ELF to a flat binary with our
-  own ELF reader, and checks it (below).
+- `xtask payload`: builds the payload and ships the ELF the loader maps (GoldHEN
+  BinLoader loads an ELF, not a flat image; see hermes-provenance.md S1). Our own
+  ELF reader checks it (below); it no longer flattens.
 
 ## Wire protocol (`hermes-wire`, version 1)
 
@@ -98,10 +99,11 @@ once, as pkg-tools' test `payload_has_one_callback_marker` does.
 - Target `x86_64-unknown-none`, `no_std`, `panic = "abort"`, no allocator, or a
   fixed arena if a spike shows one is needed. Position-independent. Linked by
   `rust-lld`.
-- `xtask payload` output checks: entry point at offset 0 of the flat binary, no
-  relocations left that the loader would have to apply, size under a set budget
-  (64 KiB, D27), config marker exactly once, and a reproducible build
-  (same source + toolchain = same bytes, recorded as the build ID).
+- `xtask payload` output checks (on the ELF's loaded view): entry first, no
+  relocations left that the loader would have to apply, no dynamic linker,
+  loaded size under a set budget (64 KiB, D27), config marker exactly once, and
+  a reproducible build (same source + toolchain = same ELF bytes, recorded as
+  the build ID).
 - Behaviour: connect to the host, send `Hello`, then loop: receive `Job`, register
   the install task, report `Registered`/`Failed`, poll status if S4 works, then
   exit on `Bye`, on connection loss, or after an idle timeout (5 min, D27).
@@ -201,7 +203,7 @@ installation." *Installed* appears only if S4 works.
   truncation sweeps, `Corruptor`, a `fuzz_hermes_wire` target), the host session,
   HTTP range server, peer check and token (`crates/hermes`, tested against a fake
   console over loopback), `hermes send` / `hermes probe` and `pantheon hermes`,
-  and `cargo xtask payload` (ELF to flat binary, checks, build ID).
+  and `cargo xtask payload` (ships the ELF, checks, build ID).
 - The payload (`console/hermes-payload`) has its session loop (tested on the
   host against a scripted console); every console call is a stub until spikes
   S1–S4. No console ABI detail is in the repository yet.

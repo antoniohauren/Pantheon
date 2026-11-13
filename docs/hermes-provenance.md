@@ -129,7 +129,7 @@ image loaded, and how must a payload end?
 
 1. **Return test.** Build a payload whose `_start` returns at once (the
    current binary does exactly that, since every call is a stub). Send it
-   with `hermes probe --ps4 IP --payload target/hermes-payload/hermes-payload.bin`.
+   with `hermes probe --ps4 IP --payload target/hermes-payload/hermes-payload.elf`.
    Observe: does the loader accept it, does the console stay responsive, can
    a second payload be sent right after? Expected host output: "the payload
    did not connect back" (it has no sockets yet).
@@ -147,6 +147,109 @@ image loaded, and how must a payload end?
 
 Record: per test, what was sent (build ID), what the console did, what the
 host printed.
+
+#### Result, test 1 (return test), 2026-11-13
+
+**Real-target evidence** (logged in
+[`verification-log.md`](verification-log.md)). Console: PS4 firmware 13.52,
+GoldHEN v2.4b18.13, BinLoader on TCP 9090 at 192.168.0.38. Host: Linux (Arch),
+the rustup `1.99.1-x86_64-unknown-linux-gnu` toolchain (which carries the
+`x86_64-unknown-none` precompiled `core`; the distribution `rust` package does
+not, so `cargo xtask payload` must run under rustup). Payload: the flat
+`x86_64-unknown-none` image, 344 bytes, build ID
+`6ea771911dcd0883d1b3bacf610262a5`, every `sys.rs` call still a stub.
+
+Sent with
+`hermes probe --ps4 192.168.0.38 --payload target/hermes-payload/hermes-payload.bin`.
+
+- **Console (raw):** `warning: invalid payload format`.
+- **Host (raw):** `hermes: the payload did not connect back; check the loader
+  and firewall settings`.
+
+So BinLoader **rejected the image and did not run it**; the return and
+connect-back behaviour this test was meant to observe is still unknown. The
+rejection is not an ELF-vs-flat mistake: public documentation says port 9090
+takes a raw `.bin` and ELF files go to a separate loader (elfldr, 9021), so the
+flat container is the right one. The host side sends the raw bytes with a
+`write_all` then `shutdown(Write)` for EOF (`session.rs` `push`), with no length
+prefix or header. What triggers `invalid payload format` is therefore not yet
+identified, and must be confirmed from GoldHEN's public BinLoader documentation
+or by black-box probing — **not** by reading GoldHEN's GPL source — before any
+change to `link.ld` or the host framing. Open sub-question: does BinLoader
+require a length prefix, a header/magic, a minimum size, or an alignment the
+344-byte stub lacks?
+
+Sources read for this entry: [GoldHEN site](https://goldhen.net/) and
+[ConsoleMods wiki](https://consolemods.org/wiki/PS4:GoldHEN) (port 9090 =
+BinLoader), [Brewology](https://store.brewology.com/ps4/) (`.bin` to BinLoader
+9090, `.elf` to elfldr 9021). The DeepWiki GoldHEN "Server Components" page was
+rate-limited (HTTP 429) and not read.
+
+#### Isolation: a known-good payload is accepted, 2026-11-13
+
+Same console, same loader and port, same wire framing (raw bytes to EOF): a
+known-good payload built by other, non-Hermes tooling was sent to BinLoader on
+9090 (with `nc -N`, which half-closes on EOF the way our host's
+`shutdown(Write)` does). The console reported the payload received with **no
+error** — no `invalid payload format`. The fault is therefore **our image**,
+not the loader, the port, or the framing. (The known-good payload was treated
+as an opaque blob only, to exercise the loader; its contents were not inspected,
+per the clean-room rule.)
+
+The suspect is the flatten step: `cargo xtask payload` compiles the payload to
+an ELF and then strips it to a flat, headerless image (`xtask/src/elf.rs`,
+`link.ld`; an implementation choice in `gods/hermes.md`, not a numbered
+decision — D33 fixes only the `x86_64-unknown-none` target). This BinLoader
+appears to want the ELF (or a header) that the flatten step removes. That stale
+"9090 takes a raw `.bin`" guidance does not hold for GoldHEN v2.4b18.13.
+
+#### Confirmation: BinLoader accepts our ELF, 2026-11-13
+
+A direct, clean-room-safe experiment settled it. Our own payload, built but
+**not** flattened — the compiled ELF at
+`target/hermes-payload/build-a/x86_64-unknown-none/release/hermes-payload`
+(magic `7f 45 4c 46`) — was sent to BinLoader on 9090 with `nc -N`. The console
+reported it received with **no** `invalid payload format`. Same payload source,
+same loader, same framing; the only difference from the rejected send is the
+flatten step. So GoldHEN v2.4b18.13 BinLoader **loads an ELF itself** and
+rejects a headerless flat image. The public "9090 takes a raw `.bin`" guidance
+is wrong for this version.
+
+**Change made (owner-approved 2026-11-13): the payload build ships the ELF.**
+`cargo xtask payload` no longer flattens; it emits the compiled ELF, which the
+loader maps. What changed:
+
+- `xtask/src/payload.rs`: the output is the ELF bytes
+  (`target/hermes-payload/hermes-payload.elf`), not a flat image. The two-build
+  determinism check, the single-`HRMSCFG1` check and build-ID stamping now run
+  against the ELF. `xtask/src/elf.rs` still parses the ELF for the structural
+  checks (entry first, no relocations, no `PT_INTERP`, loaded size within the
+  64 KiB budget).
+- `D37(1)` updated: the build ID is now SHA-256 of the unpatched ELF, not of
+  the flat image.
+- `crates/hermes/src/ops.rs`: the `embed-payload` include path is the `.elf`.
+- Host unchanged: `config::find`/`patch`/`stamp_build_id` scan raw bytes for
+  `HRMSCFG1` and work on the ELF as-is; `session.rs` `push` sends the bytes
+  unchanged.
+- `link.ld` kept as-is: it still produces a valid ELF with the entry first; it
+  is no longer flattened, so the "jumps to a blob at address 0" premise is moot.
+- Open risk for the real payload (not the stub): BinLoader's relocation
+  handling. The stub has 0 relocations; a non-trivial PIE payload will have
+  `R_X86_64_RELATIVE` entries. If BinLoader applies none, the payload must be
+  built to need none (link at a fixed base / `relocation-model=static`, or
+  self-relocate). Confirm before the real payload work (S2+).
+
+**S1 test 1 passed (2026-11-13).** After the change, the ELF payload (build ID
+`a7e9647696c84af2f354eb95a4254200`) was sent through `hermes probe
+--payload target/hermes-payload/hermes-payload.elf` (host-patched config). The
+console reported the payload received with **no** `invalid payload format`; the
+host printed `the payload did not connect back`, expected while `sys.rs` has no
+sockets. So BinLoader accepts, loads and runs our ELF, and the stub returns
+cleanly. Logged in [`verification-log.md`](verification-log.md). (One transient
+connect timeout on all three loader ports preceded the successful run.)
+
+Still open: S1 test 2 (spin test — does the loader stay usable, accept a second
+payload), and tests 3–4 (register dump, memory), which need S2's socket calls.
 
 ### S2: finding system functions without OpenOrbis or C
 

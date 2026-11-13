@@ -1,15 +1,19 @@
 //! `cargo xtask payload`: builds `console/hermes-payload` for
-//! `x86_64-unknown-none` (D33), converts the ELF to a flat binary, checks it
-//! and stamps its build ID (docs/gods/hermes.md "Payload").
+//! `x86_64-unknown-none` (D33) and ships the ELF the loader maps. GoldHEN
+//! BinLoader loads an ELF itself and rejects a flat image with "invalid
+//! payload format" (confirmed on a real console; docs/hermes-provenance.md,
+//! S1), so the build no longer flattens. Checks it and stamps its build ID
+//! (docs/gods/hermes.md "Payload").
 //!
-//! Checks: entry at offset 0, no relocations left for the loader, no dynamic
-//! linker, size within the 64 KiB budget (D27), the config marker exactly
-//! once, and a reproducible build (two clean builds, same bytes).
+//! Checks (on the ELF's loaded view): entry first, no relocations left for the
+//! loader, no dynamic linker, loaded size within the 64 KiB budget (D27), and
+//! the config marker exactly once; plus a reproducible build (two clean
+//! builds, same ELF bytes).
 //!
-//! The build ID is the first 16 bytes of the SHA-256 of the flat image as
-//! built (config block unpatched, build-ID field zero); it is then stamped
-//! into the config block. Output: `target/hermes-payload/hermes-payload.bin`,
-//! which the `hermes` feature `embed-payload` includes (D21).
+//! The build ID is the first 16 bytes of the SHA-256 of the ELF as built
+//! (config block unpatched, build-ID field zero); it is then stamped into the
+//! config block. Output: `target/hermes-payload/hermes-payload.elf`, which the
+//! `hermes` feature `embed-payload` includes (D21).
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -31,7 +35,7 @@ const MANIFEST: &str = "console/hermes-payload/Cargo.toml";
 const BIN: &str = "hermes-payload";
 /// Under the workspace target directory.
 const OUT_DIR: &str = "hermes-payload";
-const OUT_FILE: &str = "hermes-payload.bin";
+const OUT_FILE: &str = "hermes-payload.elf";
 /// D27: the payload's size budget.
 pub const SIZE_BUDGET: usize = 64 * 1024;
 /// How much of a failed build's stderr to show.
@@ -52,10 +56,10 @@ fn build_and_check() -> Result<String, (u8, String)> {
     let target_dir = std::env::var_os("CARGO_TARGET_DIR")
         .map_or_else(|| root.join("target"), PathBuf::from)
         .join(OUT_DIR);
-    let first = flat_build(&root, &target_dir.join("build-a"))?;
-    let second = flat_build(&root, &target_dir.join("build-b"))?;
+    let (mut image, first) = build(&root, &target_dir.join("build-a"))?;
+    let (second_image, _) = build(&root, &target_dir.join("build-b"))?;
     let mut failures = check(&first);
-    if first.image != second.image {
+    if image != second_image {
         failures.push("not reproducible: two clean builds differ".into());
     }
     if !failures.is_empty() {
@@ -64,8 +68,7 @@ fn build_and_check() -> Result<String, (u8, String)> {
             format!("xtask payload: checks failed:\n  {}", failures.join("\n  ")),
         ));
     }
-    let id = build_id(&first.image);
-    let mut image = first.image;
+    let id = build_id(&image);
     config::stamp_build_id(&mut image, &id)
         .map_err(|e| (EXIT_CHECK, format!("xtask payload: {e}")))?;
     let out = target_dir.join(OUT_FILE);
@@ -76,15 +79,17 @@ fn build_and_check() -> Result<String, (u8, String)> {
         )
     })?;
     Ok(format!(
-        "xtask payload: {} ({} of {SIZE_BUDGET} bytes), build ID {}\n  entry at offset 0, no relocations, marker once, reproducible",
+        "xtask payload: {} (ELF, {} bytes; loaded {} of {SIZE_BUDGET} bytes), build ID {}\n  entry first, no relocations, no dynamic linker, marker once, reproducible",
         out.display(),
         image.len(),
+        first.image.len(),
         hex(&id)
     ))
 }
 
-/// One clean release build, flattened.
-fn flat_build(root: &Path, target_dir: &Path) -> Result<Flat, (u8, String)> {
+/// One clean release build. Returns the ELF bytes shipped to the loader and
+/// the checks' flattened view of it.
+fn build(root: &Path, target_dir: &Path) -> Result<(Vec<u8>, Flat), (u8, String)> {
     if target_dir.exists() {
         std::fs::remove_dir_all(target_dir).map_err(|e| {
             (
@@ -135,7 +140,8 @@ fn flat_build(root: &Path, target_dir: &Path) -> Result<Flat, (u8, String)> {
             format!("xtask payload: reading {}: {e}", elf_path.display()),
         )
     })?;
-    elf::flatten(&bytes).map_err(|e| (EXIT_CHECK, format!("xtask payload: {e}")))
+    let flat = elf::flatten(&bytes).map_err(|e| (EXIT_CHECK, format!("xtask payload: {e}")))?;
+    Ok((bytes, flat))
 }
 
 /// Every check that fails, as one message each.
